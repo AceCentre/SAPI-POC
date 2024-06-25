@@ -1,0 +1,31 @@
+import "oaidl.idl";
+import "ocidl.idl";
+import "sapiddk.idl";
+
+//=== Forward References ======================================================
+
+//=== Constants ===============================================================
+
+//=== Interface definitions ===================================================
+
+//=== CoClass definitions =====================================================
+[
+	uuid(8925F9D3-0FF0-4F5E-88CD-33BB97733964),
+	version(1.0),
+	helpstring("Python SAPI TTS Engine 1.0 Type Library")
+]
+library PySAPITTSEngine
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+
+	[
+		uuid(7FD5B3F2-F8CD-4C7F-936E-40FA2A35F7C1),
+		helpstring("PySAPITTSEngine Class")
+	]
+	coclass PySAPITTSEngine
+	{
+		[default] interface ISpTTSEngine;
+		interface ISpObjectWithToken;
+	};
+};

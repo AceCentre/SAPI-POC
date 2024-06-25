@@ -1,0 +1,4 @@
+#include "${CMAKE_SOURCE_DIR}/resource.h"
+
+IDR_PYSAPITTSENGINE REGISTRY DISCARDABLE "pysapittsengine.rgs"
+1 TYPELIB "pysapittsengine.tlb"

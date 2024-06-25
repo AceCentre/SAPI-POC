@@ -1,0 +1,16 @@
+HKCR
+{
+	NoRemove CLSID
+	{
+		ForceRemove {7FD5B3F2-F8CD-4C7F-936E-40FA2A35F7C1} = s 'PySAPITTSEngine Class'
+		{
+			ProgID = s 'PySAPITTSEngine.PySAPITTSEngine.1'
+			VersionIndependentProgID = s 'PySAPITTSEngine.PySAPITTSEngine'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Both'
+			}
+			TypeLib = s '{8925F9D3-0FF0-4F5E-88CD-33BB97733964}'
+		}
+	}
+}
