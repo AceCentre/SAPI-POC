@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "pycpp.h"
 
 #include <cassert>
 #include <string_view>
@@ -7,14 +8,28 @@
 
 namespace {
 
+std::string utf8_encode(const std::wstring& wstr)
+{
+    if (wstr.empty()) return std::string();
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    return strTo;
+}
+
 #ifndef NDEBUG
-static ULONGLONG start_ticks = GetTickCount64();
+
+std::pair<unsigned int, unsigned int> current_time() {
+    static ULONGLONG start_ticks = GetTickCount64();
+    ULONGLONG ticks = GetTickCount64() - start_ticks;
+    unsigned int seconds = ticks / 1000.f;
+    unsigned int millis = ticks - (ULONGLONG)seconds * 1000;
+    return {seconds, millis};
+}
 
 void slog(const char* message)
 {
-    ULONGLONG ticks = GetTickCount64() - start_ticks;
-    ULONGLONG seconds = ticks / 1000.f;
-    ULONGLONG millis = ticks - seconds * 1000;
+    auto [seconds, millis] = current_time();
     std::string s = fmt::format("{}.{} [{}] {}\n", seconds, millis, GetCurrentThreadId(), message);
     OutputDebugStringA(s.c_str());
 }
@@ -22,9 +37,7 @@ void slog(const char* message)
 template <typename... Args>
 void slog(std::string_view format, Args&&... args)
 {
-    ULONGLONG ticks = GetTickCount64() - start_ticks;
-    ULONGLONG seconds = ticks / 1000.f;
-    ULONGLONG millis = ticks - seconds * 1000;
+    auto [seconds, millis] = current_time();
     std::string message = fmt::format("{}.{} [{}] ", seconds, millis, GetCurrentThreadId());
     message += fmt::vformat(fmt::string_view(format), fmt::make_format_args(args...)) + "\n";
     OutputDebugStringA(message.c_str());
@@ -33,9 +46,7 @@ void slog(std::string_view format, Args&&... args)
 template <typename... Args>
 void slog(std::wstring_view format, Args&&... args)
 {
-    ULONGLONG ticks = GetTickCount64() - start_ticks;
-    ULONGLONG seconds = ticks / 1000.f;
-    ULONGLONG millis = ticks - seconds * 1000;
+    auto [seconds, millis] = current_time();
     std::wstring message = fmt::format(L"{}.{} [{}] ", seconds, millis, GetCurrentThreadId());
     message += vformat(fmt::wstring_view(format), fmt::make_wformat_args(args...)) + L"\n";
     OutputDebugStringW(message.c_str());
@@ -56,12 +67,14 @@ void slog(std::wstring_view format, Args&&... args) {}
 HRESULT Engine::FinalConstruct()
 {
     slog("Engine::FinalConstruct");
+    thread_state_ = PyEval_SaveThread();
     return S_OK;
 }
 
 void Engine::FinalRelease()
 {
     slog("Engine::FinalRelease");
+    PyEval_RestoreThread(thread_state_);
 }
 
 HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken* pToken)
@@ -99,6 +112,20 @@ HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken* pToken)
     slog(L"Module={}", (const wchar_t*)mod);
     slog(L"Class={}", (const wchar_t*)cls);
 
+    pycpp::ScopedGIL lock;
+
+    pycpp::append_to_syspath(utf8_encode((const wchar_t*)path));
+
+    auto mod_utf8 = utf8_encode((const wchar_t*)mod);
+    auto cls_utf8 = utf8_encode((const wchar_t*)cls);
+
+    // Initialize voice
+    pycpp::Obj module {PyImport_ImportModule(mod_utf8.c_str())};
+    pycpp::Obj dict(pycpp::incref(PyModule_GetDict(module)));
+    pycpp::Obj voice_class(pycpp::incref(PyDict_GetItemString(dict, cls_utf8.c_str())));
+    pycpp::Obj voice_object(PyObject_CallNoArgs(voice_class));
+    speak_method_ = PyObject_GetAttrString(voice_object, "speak");
+
     return hr;
 }
 
@@ -113,6 +140,8 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
 {
     slog("Engine::Speak");
 
+    pycpp::ScopedGIL lock;
+
     for (const auto* text_frag = pTextFragList; text_frag != nullptr; text_frag = text_frag->pNext) {
         if (handle_actions(pOutputSite) == 1) {
             return S_OK;
@@ -123,6 +152,35 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
             text_frag->ulTextSrcOffset,
             text_frag->ulTextLen, 
             text_frag->pTextStart);
+
+        pycpp::Obj text {pycpp::convert({text_frag->pTextStart, text_frag->ulTextLen})};
+        pycpp::Obj generator(PyObject_CallOneArg(speak_method_, text));
+        assert(PyIter_Check(generator));
+
+        PyObject* item;
+        pycpp::Obj obj;
+        Py_buffer view;
+        int flags = PyBUF_C_CONTIGUOUS | PyBUF_SIMPLE;
+
+        while ((item = PyIter_Next(generator))) {
+            obj = item;
+
+            assert(PyObject_CheckBuffer(obj));
+            if (PyObject_GetBuffer(obj, &view, flags) == -1) {
+                throw pycpp::PythonException("PyObject_GetBuffer failed");
+            }
+
+            assert(view.ndim == 1);
+
+            ULONG written;
+            HRESULT result = pOutputSite->Write(view.buf, view.len, &written);
+            assert(result == S_OK);
+            assert(view.len == written);
+
+            PyBuffer_Release(&view);
+        }
+
+        pycpp::throw_on_error();
     }
 
     return S_OK;

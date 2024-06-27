@@ -9,6 +9,7 @@
 
 #include "pysapittsengine.h"
 #include "resource.h"
+#include "pycpp.h"
 
 class ATL_NO_VTABLE Engine : 
 	public CComObjectRootEx<CComMultiThreadModel>,
@@ -40,6 +41,9 @@ public:
 
 private:
     CComPtr<ISpObjectToken> token_;
+    pycpp::PythonVM vm_;
+    PyThreadState* thread_state_;
+    pycpp::Obj speak_method_;
 
     int handle_actions(ISpTTSEngineSite* site);
 };

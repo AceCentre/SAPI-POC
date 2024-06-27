@@ -4,6 +4,8 @@ project(pysapitts)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
+find_package(Python3 3.11 REQUIRED COMPONENTS Development.Embed)
+
 include(FetchContent)
 
 FetchContent_Declare(fmt
@@ -46,6 +48,9 @@ add_custom_target(midl
 add_library(pysapittsengine SHARED
     dllmain.cpp
     engine.cpp
+    engine.h
+    pycpp.cpp
+    pycpp.h
     exports.def
     ${CMAKE_CURRENT_BINARY_DIR}/resource.rc
     ${CMAKE_CURRENT_BINARY_DIR}/pysapittsengine_i.c
@@ -57,6 +62,7 @@ target_include_directories(pysapittsengine PRIVATE
 
 target_link_libraries(pysapittsengine PRIVATE
     fmt::fmt
+    Python3::Python
 )
 
 set_target_properties(pysapittsengine PROPERTIES
