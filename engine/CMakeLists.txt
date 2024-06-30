@@ -51,6 +51,7 @@ add_library(pysapittsengine SHARED
     engine.h
     pycpp.cpp
     pycpp.h
+    slog.h
     exports.def
     ${CMAKE_CURRENT_BINARY_DIR}/resource.rc
     ${CMAKE_CURRENT_BINARY_DIR}/pysapittsengine_i.c

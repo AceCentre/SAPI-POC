@@ -23,12 +23,14 @@ inline PyObject* incref(PyObject* o) {
     return o;
 }
 
-void append_to_syspath(std::string_view path);
+bool append_to_syspath(std::wstring_view path);
 
 class PythonVM {
 public:
     PythonVM();
     ~PythonVM();
+private:
+    PyThreadState* thread_state_;
 };
 
 class Obj {

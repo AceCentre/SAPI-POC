@@ -3,6 +3,7 @@ from typing import Generator
 import struct
 import math
 
+
 class Voice(ABC):
     def __init__(self):
         pass
@@ -12,7 +13,7 @@ class Voice(ABC):
         pass
 
 
-class JessaNeuralVoice(Voice):
+class DummyVoice(Voice):
     def __init__(self):
         super().__init__()
 
@@ -22,8 +23,12 @@ class JessaNeuralVoice(Voice):
             yield bytes(int(16000 * 0.2))
 
 
-def generate_sine_wave(sampling_rate: int, volume: float, duration: float, frequency: float):
+def generate_sine_wave(
+    sampling_rate: int, volume: float, duration: float, frequency: float
+):
     num_samples = int(sampling_rate * duration)
-    samples = [int(volume * 32767 * math.sin(2 * math.pi * k * frequency / sampling_rate))
-        for k in range(0, num_samples)]
+    samples = [
+        int(volume * 32767 * math.sin(2 * math.pi * k * frequency / sampling_rate))
+        for k in range(0, num_samples)
+    ]
     return struct.pack(f"<{num_samples}h", *samples)

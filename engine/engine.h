@@ -42,7 +42,8 @@ public:
 private:
     CComPtr<ISpObjectToken> token_;
     pycpp::PythonVM vm_;
-    PyThreadState* thread_state_;
+
+    // TTS methods
     pycpp::Obj speak_method_;
 
     int handle_actions(ISpTTSEngineSite* site);

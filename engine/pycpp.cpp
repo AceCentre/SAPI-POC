@@ -1,4 +1,5 @@
 #include "pycpp.h"
+#include "slog.h"
 
 #include <stdexcept>
 #include <fmt/printf.h>
@@ -23,38 +24,49 @@ PythonVM::PythonVM() {
 }
 #else
 PythonVM::PythonVM() {
-    // Initialize the pre-configuration structure
-    PyPreConfig preconfig;
-    PyPreConfig_InitIsolatedConfig(&preconfig);
-    preconfig.utf8_mode = 1;
+    slog("PythonVM::PythonVM");
 
-    // Apply the pre-configuration settings
-    PyStatus status = Py_PreInitialize(&preconfig);
-    if (PyStatus_Exception(status)) {
-        throw std::runtime_error("Failed to pre-initialize Python");
-    }
+    // call once idiom
+    static auto _ = [this]() {
+        // Initialize the pre-configuration structure
+        PyPreConfig preconfig;
+        PyPreConfig_InitIsolatedConfig(&preconfig);
+        preconfig.utf8_mode = 1;
 
-    // Initialize the configuration structure
-    PyConfig config;
-    PyConfig_InitIsolatedConfig(&config);
+        // Apply the pre-configuration settings
+        PyStatus status = Py_PreInitialize(&preconfig);
+        if (PyStatus_Exception(status)) {
+            throw std::runtime_error("Failed to pre-initialize Python");
+        }
 
-    // Example configuration adjustments
-    config.install_signal_handlers = 0;  // Disable signal handlers
-    config.use_environment = 0;  // Ignore environment variables
+        // Initialize the configuration structure
+        PyConfig config;
+        PyConfig_InitIsolatedConfig(&config);
 
-    // Apply the configuration settings
-    status = Py_InitializeFromConfig(&config);
-    if (PyStatus_Exception(status)) {
-        throw std::runtime_error("Failed to initialize Python");
-    }
+        // Example configuration adjustments
+        config.install_signal_handlers = 0;  // Disable signal handlers
+        config.use_environment = 0;  // Ignore environment variables
 
-    // Free the configuration structure (no longer needed)
-    PyConfig_Clear(&config);
+        // Apply the configuration settings
+        status = Py_InitializeFromConfig(&config);
+        if (PyStatus_Exception(status)) {
+            throw std::runtime_error("Failed to initialize Python");
+        }
+
+        // Free the configuration structure (no longer needed)
+        PyConfig_Clear(&config);
+
+        thread_state_ = PyEval_SaveThread();
+
+        return 0;
+    }();
 }
 #endif
 
 PythonVM::~PythonVM() {
-    Py_FinalizeEx();
+    slog("PythonVM::~PythonVM");
+    //PyEval_RestoreThread(thread_state_);
+    //Py_FinalizeEx();
 }
 
 #if 0
@@ -121,8 +133,7 @@ void pycpp::throw_on_error() {
     }
 }
 
-void pycpp::append_to_syspath(std::string_view path) {
-    // TODO: GIL
+bool pycpp::append_to_syspath(std::wstring_view path) {
     Obj sys_module_obj {PyImport_ImportModule("sys")};
     assert(PyModule_Check(sys_module_obj));
 
@@ -130,11 +141,23 @@ void pycpp::append_to_syspath(std::string_view path) {
     assert(PyList_Check(path_list_obj));
 
     Obj path_obj {convert(path)};
-    // fmt::println("refcount: {}", Py_REFCNT(path_obj));
+
+    Py_ssize_t size = PyList_Size(path_list_obj);
+    slog("path_list_obj size: {}", size);
+
+    for (Py_ssize_t i = 0; i < size; i++) {
+        Obj path_i {incref(PyList_GetItem(path_list_obj, i))};
+        assert(PyUnicode_Check(path_i) == 1);
+        if (PyUnicode_Compare(path_obj, path_i) == 0) {
+            return false;
+        }
+    }
 
     if (PyList_Append(path_list_obj, path_obj) == -1) {
         throw PythonException("PyList_Append failed");
     }
+
+    return true;
 }
 
 PyObject* pycpp::convert(std::string_view value) {

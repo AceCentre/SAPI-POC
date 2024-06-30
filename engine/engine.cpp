@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "pycpp.h"
+#include "slog.h"
 
 #include <cassert>
 #include <string_view>
@@ -17,64 +18,21 @@ std::string utf8_encode(const std::wstring& wstr)
     return strTo;
 }
 
-#ifndef NDEBUG
-
-std::pair<unsigned int, unsigned int> current_time() {
-    static ULONGLONG start_ticks = GetTickCount64();
-    ULONGLONG ticks = GetTickCount64() - start_ticks;
-    unsigned int seconds = ticks / 1000.f;
-    unsigned int millis = ticks - (ULONGLONG)seconds * 1000;
-    return {seconds, millis};
-}
-
-void slog(const char* message)
-{
-    auto [seconds, millis] = current_time();
-    std::string s = fmt::format("{}.{} [{}] {}\n", seconds, millis, GetCurrentThreadId(), message);
-    OutputDebugStringA(s.c_str());
-}
-
-template <typename... Args>
-void slog(std::string_view format, Args&&... args)
-{
-    auto [seconds, millis] = current_time();
-    std::string message = fmt::format("{}.{} [{}] ", seconds, millis, GetCurrentThreadId());
-    message += fmt::vformat(fmt::string_view(format), fmt::make_format_args(args...)) + "\n";
-    OutputDebugStringA(message.c_str());
-}
-
-template <typename... Args>
-void slog(std::wstring_view format, Args&&... args)
-{
-    auto [seconds, millis] = current_time();
-    std::wstring message = fmt::format(L"{}.{} [{}] ", seconds, millis, GetCurrentThreadId());
-    message += vformat(fmt::wstring_view(format), fmt::make_wformat_args(args...)) + L"\n";
-    OutputDebugStringW(message.c_str());
-}
-#else
-void slog(const char* message) {}
-
-template <typename... Args>
-void slog(std::string_view format, Args&&... args) {}
-
-template <typename... Args>
-void slog(std::wstring_view format, Args&&... args) {}
-#endif // NDEBUG
-
-
 } // namespace
 
 HRESULT Engine::FinalConstruct()
 {
     slog("Engine::FinalConstruct");
-    thread_state_ = PyEval_SaveThread();
     return S_OK;
 }
 
 void Engine::FinalRelease()
 {
     slog("Engine::FinalRelease");
-    PyEval_RestoreThread(thread_state_);
+
+    // Must call reset with the GIL held
+    pycpp::ScopedGIL lock;
+    speak_method_.reset();
 }
 
 HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken* pToken)
@@ -114,7 +72,18 @@ HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken* pToken)
 
     pycpp::ScopedGIL lock;
 
-    pycpp::append_to_syspath(utf8_encode((const wchar_t*)path));
+    // Append to sys.path
+    std::wstring_view path_view {(const wchar_t*)path, path.Length()};
+
+    for (size_t offset = 0;;) {
+        auto pos = path_view.find(L';', offset);
+        if (pos == std::wstring_view::npos) {
+            pycpp::append_to_syspath(path_view.substr(offset));
+            break;
+        }
+        pycpp::append_to_syspath(path_view.substr(offset, pos - offset));
+        offset += pos + 1;
+    }
 
     auto mod_utf8 = utf8_encode((const wchar_t*)mod);
     auto cls_utf8 = utf8_encode((const wchar_t*)cls);
@@ -147,7 +116,7 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
             return S_OK;
         }
 
-        fmt::println(L"action={}, offset={}, length={}, text=\"{}\"",
+        slog(L"action={}, offset={}, length={}, text=\"{}\"",
             (int)text_frag->State.eAction,
             text_frag->ulTextSrcOffset,
             text_frag->ulTextLen, 
@@ -177,8 +146,12 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
             assert(result == S_OK);
             assert(view.len == written);
 
+            slog("Engine::Speak written={}", written);
+
             PyBuffer_Release(&view);
         }
+
+        slog("Engine::Speak end of fragment");
 
         pycpp::throw_on_error();
     }
@@ -190,7 +163,8 @@ HRESULT __stdcall Engine::GetOutputFormat(const GUID* pTargetFormatId, const WAV
                                           GUID* pDesiredFormatId, WAVEFORMATEX** ppCoMemDesiredWaveFormatEx)
 {
     slog("Engine::GetOutputFormat");
-    return SpConvertStreamFormatEnum(SPSF_16kHz16BitMono, pDesiredFormatId, ppCoMemDesiredWaveFormatEx);
+    // FIXME: Query audio format from Python voice
+    return SpConvertStreamFormatEnum(SPSF_24kHz16BitMono, pDesiredFormatId, ppCoMemDesiredWaveFormatEx);
 }
 
 int Engine::handle_actions(ISpTTSEngineSite* site)
@@ -212,14 +186,14 @@ int Engine::handle_actions(ISpTTSEngineSite* site)
         auto result = site->GetSkipInfo(&skip_type, &num_items);
         assert(result == S_OK);
         assert(skip_type == SPVST_SENTENCE);
-        fmt::println("num_items={}", num_items);
+        slog("num_items={}", num_items);
     }
 
     if (actions & SPVES_RATE) {
         LONG rate;
         auto result = site->GetRate(&rate);
         assert(result == S_OK);
-        fmt::println("rate={}", rate);
+        slog("rate={}", rate);
 
     }
 
@@ -227,7 +201,7 @@ int Engine::handle_actions(ISpTTSEngineSite* site)
         USHORT volume;
         auto result = site->GetVolume(&volume);
         assert(result == S_OK);
-        fmt::println("volume={}", volume);
+        slog("volume={}", volume);
     }
 
     return 0;

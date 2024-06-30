@@ -14,5 +14,5 @@ regsvr32.exe pysapittsengine.dll
 
 # Registering voice (run as Administrator)
 ```
-regvoice.exe --token PYTTS_JessaNeural --name "Jessa Neural" --vendor Microsoft --path C:\Work\PySAPI\voices --module pysapitts --class JessaNeuralVoice
+regvoice.exe --token PYTTS-AzureNeural --name "Azure Neural" --vendor Microsoft --path C:\Work\SAPI-POC;C:\Work\build\venv\Lib\site-packages --module voices --class AzureNeuralVoice
 ```
