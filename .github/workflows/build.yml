@@ -43,13 +43,10 @@ jobs:
           python-version: "3.11"
       - name: Set up UV
         uses: yezz123/setup-uv@v4
-        run: uv --version
-      # Sync UV environment and dependencies
       - name: Sync UV dependencies
         run: |
           cd VoiceServer
           uv sync
-
       # Compile VoiceServer.py using Nuitka inside UV virtual environment
       - name: Compile VoiceServer.py with Nuitka
         run: |
