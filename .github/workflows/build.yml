@@ -21,21 +21,10 @@ jobs:
       - name: Install CMake via Chocolatey
         run: choco install cmake --installargs '"ADD_CMAKE_TO_PATH=System"'
 
-      # Install Python & Nuitka
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.9"
-
-      # Install UV (Universal Virtualenv) using pip
-      - name: Install UV
-        run: |
-          python -m pip install uv
-          uv sync
-
       # Build the DLL
       - name: Build DLL using CMake
         run: |
+          cd engine
           mkdir build
           cd build
           cmake ..
@@ -45,24 +34,31 @@ jobs:
       # Move the DLL to VoiceServer directory
       - name: Move DLL to VoiceServer directory
         run: |
-          mkdir -p VoiceServer
-          move build/*.dll VoiceServer/
+          move engine/build/*.dll VoiceServer/
 
-      # Install Nuitka for compiling Python files
-      - name: Install Nuitka
-        run: python -m pip install nuitka
+      # Install Python & UV (Universal Virtualenv)
+      - name: Set up Python and UV
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
 
-      # Compile VoiceServer.py using Nuitka
+      # Sync UV environment and dependencies
+      - name: Sync UV dependencies
+        run: |
+          cd VoiceServer
+          uv sync
+
+      # Compile VoiceServer.py using Nuitka inside UV virtual environment
       - name: Compile VoiceServer.py with Nuitka
         run: |
           cd VoiceServer
-          python -m nuitka --standalone --onefile VoiceServer.py --include-data-files=VoiceServer.dll=.
+          uv run python -m nuitka --standalone --onefile VoiceServer.py --include-data-files=VoiceServer.dll=.
 
-      # Compile RegisterVoice.py using Nuitka
+      # Compile RegisterVoice.py using Nuitka inside UV virtual environment
       - name: Compile RegisterVoice.py with Nuitka
         run: |
           cd VoiceServer
-          python -m nuitka --standalone --onefile RegisterVoice.py
+          uv run python -m nuitka --standalone --onefile RegisterVoice.py
 
       # Archive the compiled executables
       - name: Archive the output
