@@ -189,6 +189,14 @@ class PipeServerThread(QThread):
                             tts_engine = self.engines[engine_name]
                             tts_engine.set_voice(voice_iso_code)
                             logging.info(f"Voice {voice_iso_code} set for {engine_name}")
+                    elif request.get('action') == 'set_voice':
+                        engine_name = request.get('engine')
+                        voice_iso_code = request.get('voice_iso_code')
+                        if engine_name in self.engines:
+                            tts_engine = self.engines[engine_name]
+                            success = self.register_voice(tts_engine, engine_name, voice_iso_code)
+                            response = {"status": "success" if success else "failure"}
+                            win32file.WriteFile(pipe, json.dumps(response).encode())
                     elif request.get('action') == 'speak_text':
                         engine_name = request.get('engine')
                         text = request.get('text')
@@ -212,6 +220,53 @@ class PipeServerThread(QThread):
             logging.info(f"Finished streaming TTS audio for text: {text[:50]}...")
         except Exception as e:
             logging.error(f"Error streaming TTS audio: {e}", exc_info=True)
+    
+    def register_voice(self, tts_engine, engine_name, voice_iso_code):
+        """Registers the voice by first registering the engine, then the voice."""
+        try:
+            # Step 1: Register the engine (assumed dll file is named pysapittsengine.dll)
+            engine_dll = "pysapittsengine.dll"
+            if not self.is_engine_registered(engine_dll):
+                logging.info(f"Registering engine: {engine_dll}")
+                self.run_command(["regsvr32.exe", "/s", engine_dll])
+                logging.info(f"Engine {engine_dll} registered successfully.")
+
+            # Step 2: Register the voice using `regvoice.exe`
+            voice_name = tts_engine.get_voice_name(voice_iso_code)
+            voice_registration_command = [
+                "regvoice.exe",
+                "--token", f"PYTTS-{voice_name.replace(' ', '')}",
+                "--name", voice_name,
+                "--vendor", "Microsoft",  # Adjust as needed
+                "--path", "C:\\Work\\SAPI-POC;C:\\Work\\build\\venv\\Lib\\site-packages",
+                "--module", "voices",
+                "--class", voice_iso_code  # Assuming the voice ISO code corresponds to the class
+            ]
+            logging.info(f"Registering voice: {voice_name}")
+            self.run_command(voice_registration_command)
+            logging.info(f"Voice {voice_name} registered successfully.")
+            return True
+
+        except Exception as e:
+            logging.error(f"Error registering voice: {e}")
+            return False
+
+    def is_engine_registered(self, dll_name):
+        """Check if the engine DLL is already registered. This is a simplified check."""
+        try:
+            result = subprocess.run(["regsvr32.exe", "/n", dll_name], capture_output=True)
+            return result.returncode == 0
+        except Exception as e:
+            logging.error(f"Failed to check engine registration: {e}")
+            return False
+
+    def run_command(self, command):
+        """Utility to run a system command."""
+        try:
+            subprocess.run(command, check=True)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Command failed: {command}\nError: {e}")
+            raise
 
 class MainWindow(QWidget):
     def __init__(self):
