@@ -1,0 +1,74 @@
+name: Build and Compile
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # Checkout the code
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      # Install CMake
+      - name: Install CMake via Chocolatey
+        run: choco install cmake --installargs '"ADD_CMAKE_TO_PATH=System"'
+
+      # Install Python & Nuitka
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+
+      # Install UV (Universal Virtualenv) using pip
+      - name: Install UV
+        run: |
+          python -m pip install uv
+          uv sync
+
+      # Build the DLL
+      - name: Build DLL using CMake
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build . --config Debug
+          cmake --build . --config Release
+
+      # Move the DLL to VoiceServer directory
+      - name: Move DLL to VoiceServer directory
+        run: |
+          mkdir -p VoiceServer
+          move build/*.dll VoiceServer/
+
+      # Install Nuitka for compiling Python files
+      - name: Install Nuitka
+        run: python -m pip install nuitka
+
+      # Compile VoiceServer.py using Nuitka
+      - name: Compile VoiceServer.py with Nuitka
+        run: |
+          cd VoiceServer
+          python -m nuitka --standalone --onefile VoiceServer.py --include-data-files=VoiceServer.dll=.
+
+      # Compile RegisterVoice.py using Nuitka
+      - name: Compile RegisterVoice.py with Nuitka
+        run: |
+          cd VoiceServer
+          python -m nuitka --standalone --onefile RegisterVoice.py
+
+      # Archive the compiled executables
+      - name: Archive the output
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-executables
+          path: |
+            VoiceServer/VoiceServer.exe
+            VoiceServer/RegisterVoice.exe
