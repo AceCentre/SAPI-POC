@@ -157,13 +157,14 @@ class PipeServerThread(QThread):
             pipe = None
             try:
                 pipe = win32pipe.CreateNamedPipe(
-                    pipe_name,
-                    win32pipe.PIPE_ACCESS_DUPLEX,
-                    win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT,
-                    win32pipe.PIPE_UNLIMITED_INSTANCES, 65536, 65536,
-                    0,
-                    None)
-
+                pipe_name,
+                win32pipe.PIPE_ACCESS_DUPLEX,
+                win32pipe.PIPE_TYPE_MESSAGE | win32pipe.PIPE_READMODE_MESSAGE | win32pipe.PIPE_WAIT,
+                win32pipe.PIPE_UNLIMITED_INSTANCES,
+                1024 * 1024,  # Increase the buffer size to 1MB
+                1024 * 1024,  # Increase the buffer size for reading
+                0,
+                None)
                 logging.info("Waiting for client connection...")
                 win32pipe.ConnectNamedPipe(pipe, None)
                 logging.info("Client connected.")
@@ -174,23 +175,30 @@ class PipeServerThread(QThread):
                     logging.info(f"Received data: {message[:50]}...")
                     request = json.loads(message)
 
-                    # Handle different requests
+                                        # Handle different requests
                     if request.get('action') == 'list_engines':
                         response = {'engines': self.available_engines}
                         win32file.WriteFile(pipe, json.dumps(response).encode())
                     elif request.get('action') == 'list_voices':
                         engine_name = request.get('engine')
                         if engine_name in self.engines:
-                            voices = self.engines[engine_name].get_voices()
+                            voices = self.fetch_voices(engine_name)
                             win32file.WriteFile(pipe, json.dumps(voices).encode())
                     elif request.get('action') == 'set_voice':
                         engine_name = request.get('engine')
                         voice_iso_code = request.get('voice_iso_code')
                         if engine_name in self.engines:
                             tts_engine = self.engines[engine_name]
-                            tts_engine.set_voice(voice_iso_code)
-                            logging.info(f"Voice {voice_iso_code} set for {engine_name}")
-
+                            success = self.register_voice(tts_engine, engine_name, voice_iso_code)
+                            response = {"status": "success" if success else "failure"}
+                            win32file.WriteFile(pipe, json.dumps(response).encode())
+                    elif request.get('action') == 'speak_text':
+                        engine_name = request.get('engine')
+                        text = request.get('text')
+                        if engine_name in self.engines:
+                            tts_engine = self.engines[engine_name]
+                            logging.info(f"Speaking text with {engine_name}: {text[:50]}...")
+                            self.speak_text_streamed(pipe, tts_engine, text)
                 logging.info("Processing complete. Ready for next connection.")
             except Exception as e:
                 logging.error(f"Pipe server error: {e}", exc_info=True)
@@ -198,6 +206,109 @@ class PipeServerThread(QThread):
                 if pipe:
                     win32file.CloseHandle(pipe)
                 logging.info("Pipe closed. Reopening for next connection.")
+
+    def fetch_voices(self, engine_name, pipe):
+        """Fetch voices for the selected engine and ensure the response is fully transmitted."""
+        try:
+            tts_engine = self.engines[engine_name]
+            voices = tts_engine.get_voices()
+
+            if not voices or len(voices) == 0:
+                logging.error(f"No voices found for engine: {engine_name}")
+                response_data = {"status": "error", "message": "No voices found"}
+                self.send_large_data(pipe, response_data)
+                return
+
+            response_data = {"status": "success", "voices": voices}
+
+            # Log the size of the response for debugging
+            json_response = json.dumps(response_data, ensure_ascii=False)
+            logging.info(f"Response size for {engine_name} voices: {len(json_response)} bytes")
+
+            # Send the response data in chunks
+            self.send_large_data(pipe, response_data)
+
+        except Exception as e:
+            logging.error(f"Error fetching voices for engine {engine_name}: {e}")
+            response_data = {"status": "error", "message": str(e)}
+            self.send_large_data(pipe, response_data)
+
+    def send_large_data(self, pipe, data):
+        """Send large data in chunks over the pipe."""
+        try:
+            chunk_size = 60 * 1024  # 60 KB per chunk
+
+            # Convert data to a UTF-8 encoded JSON string
+            data = json.dumps(data, ensure_ascii=False).encode('utf-8')
+
+            # Send the data in chunks
+            for i in range(0, len(data), chunk_size):
+                chunk = data[i:i + chunk_size]
+                win32file.WriteFile(pipe, chunk)
+            
+            # Optionally, send a termination signal or an empty chunk at the end
+            # to indicate the end of the transmission
+            win32file.WriteFile(pipe, b'')  # An empty write to signal the end of the transmission
+            
+        except Exception as e:
+            logging.error(f"Error sending large data: {e}")
+    
+    def speak_text_streamed(self, tts_engine, text):
+        """Stream the TTS output using speak_streamed (audio will play directly)."""
+        try:
+            # Directly play the TTS audio using speak_streamed
+            tts_engine.speak_streamed(text)
+            logging.info(f"Finished streaming TTS audio for text: {text[:50]}...")
+        except Exception as e:
+            logging.error(f"Error streaming TTS audio: {e}", exc_info=True)
+    
+    def register_voice(self, tts_engine, engine_name, voice_iso_code):
+        """Registers the voice by first registering the engine, then the voice."""
+        try:
+            # Step 1: Register the engine (assumed dll file is named pysapittsengine.dll)
+            engine_dll = "pysapittsengine.dll"
+            if not self.is_engine_registered(engine_dll):
+                logging.info(f"Registering engine: {engine_dll}")
+                self.run_command(["regsvr32.exe", "/s", engine_dll])
+                logging.info(f"Engine {engine_dll} registered successfully.")
+ 
+            # Step 2: Register the voice using `regvoice.exe`
+            voice_name = tts_engine.get_voice_name(voice_iso_code)
+            voice_registration_command = [
+                "regvoice.exe",
+                "--token", f"PYTTS-{voice_name.replace(' ', '')}",
+                "--name", voice_name,
+                "--vendor", "Microsoft",  # Adjust as needed
+                "--path", "C:\\Work\\SAPI-POC;C:\\Work\\build\\venv\\Lib\\site-packages",
+                "--module", "voices",
+                "--class", voice_iso_code  # Assuming the voice ISO code corresponds to the class
+            ]
+            logging.info(f"Registering voice: {voice_name}")
+            self.run_command(voice_registration_command)
+            logging.info(f"Voice {voice_name} registered successfully.")
+            return True
+ 
+        except Exception as e:
+            logging.error(f"Error registering voice: {e}")
+            return False
+ 
+    def is_engine_registered(self, dll_name):
+        """Check if the engine DLL is already registered. This is a simplified check."""
+        try:
+            result = subprocess.run(["regsvr32.exe", "/n", dll_name], capture_output=True)
+            return result.returncode == 0
+        except Exception as e:
+            logging.error(f"Failed to check engine registration: {e}")
+            return False
+ 
+    def run_command(self, command):
+        """Utility to run a system command."""
+        try:
+            subprocess.run(command, check=True)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Command failed: {command}\nError: {e}")
+            raise
+
 
 class MainWindow(QWidget):
     def __init__(self):
