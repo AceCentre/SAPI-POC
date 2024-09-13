@@ -37,11 +37,13 @@ jobs:
           move engine/build/*.dll VoiceServer/
 
       # Install Python & UV (Universal Virtualenv)
-      - name: Set up Python and UV
-        uses: actions/setup-python@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+      - name: Set up UV
+        uses: yezz123/setup-uv@v4
+        run: uv --version
       # Sync UV environment and dependencies
       - name: Sync UV dependencies
         run: |
