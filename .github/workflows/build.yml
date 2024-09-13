@@ -46,12 +46,12 @@ jobs:
       - name: Sync UV dependencies
         run: |
           cd VoiceServer
-          uv sync
+          uv sync   
       # Compile VoiceServer.py using Nuitka inside UV virtual environment
       - name: Compile VoiceServer.py with Nuitka
         run: |
           cd VoiceServer
-          uv run python -m nuitka --standalone --onefile VoiceServer.py --include-data-files=VoiceServer.dll=.
+          uv run python -m nuitka --standalone --onefile VoiceServer.py --include-data-files=pysapittsengine.dll=.
 
       # Compile RegisterVoice.py using Nuitka inside UV virtual environment
       - name: Compile RegisterVoice.py with Nuitka
