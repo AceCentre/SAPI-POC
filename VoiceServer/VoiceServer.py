@@ -61,12 +61,12 @@ def load_config(config_path='settings.cfg'):
             'cred_json': config.get('Google', 'cred_json', fallback=os.getenv('GOOGLE_CREDS_JSON')),
         }
 
-    # AWS Polly configuration
-    if 'AWS' in config:
-        engines['AWS'] = {
-            'access_key': config.get('AWS', 'access_key'),
-            'secret_key': config.get('AWS', 'secret_key'),
-            'region': config.get('AWS', 'region'),
+    # Polly Polly configuration
+    if 'Polly' in config:
+        engines['Polly'] = {
+            'aws_key_id': config.get('Polly', 'aws_key_id'),
+            'aws_access_key': config.get('Polly', 'aws_access_key'),
+            'region': config.get('Polly', 'region'),
         }
 
     # Sherpa-ONNX configuration
@@ -106,18 +106,18 @@ def init_engines(engines):
         except Exception as e:
             logging.error(f"Error initializing Google TTS: {e}")
 
-    # AWS Polly TTS
-    if 'AWS' in engines:
-        aws_key = engines['AWS']['access_key']
-        aws_secret = engines['AWS']['secret_key']
-        aws_region = engines['AWS']['region']
+    # Polly Polly TTS
+    if 'Polly' in engines:
+        polly_key = engines['Polly']['aws_access_key']
+        polly_key_id = engines['Polly']['aws_key_id']
+        polly_region = engines['Polly']['region']
         try:
-            polly_client = PollyClient(credentials=(aws_key, aws_secret, aws_region))
+            polly_client = PollyClient(credentials=(polly_region, polly_key_id, polly_key))
             polly_tts = PollyTTS(polly_client)
             polly_tts.get_voices()  # Validate by fetching voices
-            initialized_engines['AWS'] = polly_tts
+            initialized_engines['Polly'] = polly_tts
         except Exception as e:
-            logging.error(f"Error initializing AWS Polly: {e}")
+            logging.error(f"Error initializing Polly Polly: {e}")
 
     # Sherpa-ONNX TTS
     if 'SherpaOnnx' in engines:
