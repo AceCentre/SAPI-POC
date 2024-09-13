@@ -180,7 +180,7 @@ class PipeServerThread(QThread):
                     elif request.get('action') == 'list_voices':
                         engine_name = request.get('engine')
                         if engine_name in self.engines:
-                            voices = self.engines[engine_name].get_voices()
+                            voices = self.fetch_voices(engine_name)
                             win32file.WriteFile(pipe, json.dumps(voices).encode())
                     elif request.get('action') == 'set_voice':
                         engine_name = request.get('engine')
@@ -211,7 +211,25 @@ class PipeServerThread(QThread):
                 if pipe:
                     win32file.CloseHandle(pipe)
                 logging.info("Pipe closed. Reopening for next connection.")
-    
+   
+    def fetch_voices(self, engine_name):
+        """Fetch voices for the selected engine and ensure the request completes."""
+        try:
+            tts_engine = self.engines[engine_name]
+            voices = tts_engine.get_voices()
+
+            # Make sure that we wait for the voices to be completely fetched
+            if not voices or len(voices) == 0:
+                logging.error(f"No voices found for engine: {engine_name}")
+                return {"status": "error", "message": "No voices found"}
+
+            logging.info(f"Fetched {len(voices)} voices for engine: {engine_name}")
+            return {"status": "success", "voices": voices}
+
+        except Exception as e:
+            logging.error(f"Error fetching voices for engine {engine_name}: {e}")
+            return {"status": "error", "message": str(e)}
+        
     def speak_text_streamed(self, tts_engine, text):
         """Stream the TTS output using speak_streamed (audio will play directly)."""
         try:
