@@ -195,13 +195,10 @@ class PipeServerThread(QThread):
                         if engine_name in self.engines:
                             self.fetch_voices(engine_name, pipe)
                     elif request.get('action') == 'set_voice':
-                        engine_name = request.get('engine')
                         voice_iso_code = request.get('voice_iso_code')
-                        if engine_name in self.engines:
-                            tts_engine = self.engines[engine_name]
-                            success = self.register_voice(tts_engine, engine_name, voice_iso_code)
-                            response = {"status": "success" if success else "failure"}
-                            win32file.WriteFile(pipe, json.dumps(response).encode())
+                        success = self.register_voice(voice_iso_code) 
+                        response = {"status": "success" if success else "failure"}
+                        win32file.WriteFile(pipe, json.dumps(response).encode())
                     elif request.get('action') == 'speak':
                         engine_name = request.get('engine')
                         voice_name = request.get('voice')
@@ -274,30 +271,37 @@ class PipeServerThread(QThread):
         for audio_chunk in tts_engine.speak_streamed(text):
             win32file.WriteFile(pipe, audio_chunk)
     
-    def register_voice(self, engine_name, voice_iso_code):
-        """Registers the voice with the system using the custom TTS engine DLL."""
-        voice_name = f"{engine_name}-{voice_iso_code}"  # Voice name format
-
+    def register_voice(self, voice_iso_code):
         try:
-            # Path to the engine DLL that needs to be registered
-            engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
-
-            # Check if the DLL exists
-            if not os.path.exists(engine_dll):
-                logging.error(f"Engine DLL not found at {engine_dll}")
-                return False
+            # Split the voice_iso_code to get engine and voice name
+            engine_name, voice_name = voice_iso_code.split("-", 1)
 
             # Log the registration process
-            logging.info(f"Registering engine: {engine_dll}")
-
-            # Register the DLL with regsvr32.exe (this tells Windows where the DLL is located)
+            logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
+            
+            # Register the engine DLL
+            engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
             self.run_command(["regsvr32.exe", "/s", engine_dll])
 
-            logging.info(f"Successfully registered voice: {voice_name}")
+            # Register the voice using regvoice.exe
+            register_command = [
+                os.path.join(self.libs_directory, 'regvoice.exe'),
+                '--token', f"PYTTS-{engine_name}",
+                '--name', voice_name,
+                '--vendor', engine_name,
+                '--path', f"{self.libs_directory};{self.venv_lib_path}",
+                '--module', 'voices',
+                '--class', f"{engine_name}Voice"
+            ]
+            
+            # Run the registration command
+            self.run_command(register_command)
+
+            logging.info(f"Successfully registered voice: {voice_iso_code}")
             return True
 
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Failed to register voice {voice_name}: {e}")
+        except Exception as e:
+            logging.error(f"Failed to register voice {voice_iso_code}: {e}")
             return False
 
  

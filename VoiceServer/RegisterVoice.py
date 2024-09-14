@@ -103,22 +103,21 @@ class VoiceSelectionGUI(QWidget):
             QMessageBox.warning(self, "Warning", "Please select at least one voice to register.")
             return
 
-        engine_name = self.engine_combo.currentText()
+        # Extract the selected voices from the list
         selected_voices = [item.data(Qt.UserRole)['name'] for item in selected_items]
 
-        # Send registration request to the pipe service
-        for voice_name in selected_voices:
+        # Send registration request to the pipe service for each selected voice
+        for voice_iso_code in selected_voices:
             request = {
                 "action": "set_voice",
-                "engine": engine_name,
-                "voice_iso_code": voice_name  # Assuming we pass the name as the identifier for registration
+                "voice_iso_code": voice_iso_code  # Voice ISO code now includes both engine and voice
             }
             response = send_pipe_request(request)
-            if response and "status" in response:
-                logging.info(f"Successfully registered voice: {voice_name}")
+            if response and response.get("status") == "success":
+                logging.info(f"Successfully registered voice: {voice_iso_code}")
             else:
-                logging.error(f"Failed to register voice: {voice_name}")
-                QMessageBox.critical(self, "Error", f"Failed to register voice: {voice_name}")
+                logging.error(f"Failed to register voice: {voice_iso_code}")
+                QMessageBox.critical(self, "Error", f"Failed to register voice: {voice_iso_code}")
 
         QMessageBox.information(self, "Success", "Selected voices have been registered.")
 
