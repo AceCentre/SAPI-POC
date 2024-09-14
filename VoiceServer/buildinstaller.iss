@@ -54,7 +54,7 @@ procedure InitializeWizard();
 begin
   if not IsAdminLoggedOn() then
   begin
-    MsgBox('This installer requires administrative privileges. Please restart the installer as an administrator.', mbError, mbOK);
+    MsgBox('This installer requires administrative privileges. Please restart the installer as an administrator.', mbError, MB_OK);
     WizardForm.Close;
   end;
 end;
