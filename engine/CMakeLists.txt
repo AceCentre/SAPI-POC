@@ -4,13 +4,14 @@ project(pysapitts)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-find_package(Python3 3.11 REQUIRED COMPONENTS Development.Embed)
+find_package(Python3 REQUIRED COMPONENTS Development.Embed)
+target_link_libraries(pysapittsengine PRIVATE Python3::Python)
 
 include(FetchContent)
 
 FetchContent_Declare(fmt
-  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-  GIT_TAG master
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG master
 )
 FetchContent_MakeAvailable(fmt)
 
