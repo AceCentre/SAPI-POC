@@ -48,7 +48,6 @@ jobs:
       # Move the DLL to VoiceServer directory
       - name: Move DLL and other bits to VoiceServer directory
         run: |
-          mkdir -p VoiceServer/_libs
           move engine/build/Release/* VoiceServer/_libs/
 
       - name: Move Python Embeddable to _libs
