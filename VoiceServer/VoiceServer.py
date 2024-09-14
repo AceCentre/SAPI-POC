@@ -300,7 +300,8 @@ class PipeServerThread(QThread):
         try:
             engine_name, voice_name = voice_id.split("-", 1)
             logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
-            
+            default_value = f"{engine_name} - {voice_name} (409)" #We need to get languages - no idea how Windows does this - but we can get it from tts.get_voices()
+
             token = f"PYTTS-{engine_name}"
             key_paths = [
                 f"SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\{token}",  # 64-bit
@@ -309,10 +310,11 @@ class PipeServerThread(QThread):
             
             for key_path in key_paths:
                 with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, default_value)
                     winreg.SetValueEx(key, "Name", 0, winreg.REG_SZ, voice_name)
                     winreg.SetValueEx(key, "Vendor", 0, winreg.REG_SZ, engine_name)
-                    winreg.SetValueEx(key, "Language", 0, winreg.REG_SZ, "409")  # Adjust language if needed
-                    winreg.SetValueEx(key, "Gender", 0, winreg.REG_SZ, "Female")  # Adjust gender
+                    winreg.SetValueEx(key, "Language", 0, winreg.REG_SZ, "409")  # to-do language 
+                    winreg.SetValueEx(key, "Gender", 0, winreg.REG_SZ, "Female")  # to-do gender
                     winreg.SetValueEx(key, "Age", 0, winreg.REG_SZ, "Adult")
                     winreg.SetValueEx(key, "Path", 0, winreg.REG_SZ, self.libs_directory)
                     winreg.SetValueEx(key, "Module", 0, winreg.REG_SZ, "voices")
