@@ -6,6 +6,7 @@
 #include <sphelper.h>
 #include <spcollec.h>
 #include <spddkhlp.h>
+#include <iostream>
 
 #include "pysapittsengine.h"
 #include "resource.h"

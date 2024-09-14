@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <fmt/xchar.h>
 #include <iostream>
+#include <sstream>
 #include <json/json.h>
 
 namespace
@@ -40,6 +41,7 @@ void Engine::FinalRelease()
 }
 
 // Function to send request to pipe server
+// Function to send request to pipe server
 bool SendRequestToPipe(const std::string &text, const std::string &engine_name, std::vector<char> &audio_data)
 {
     // Connect to the pipe
@@ -54,7 +56,7 @@ bool SendRequestToPipe(const std::string &text, const std::string &engine_name, 
 
     if (pipe == INVALID_HANDLE_VALUE)
     {
-        std::cerr << "Error: Could not connect to pipe server.\n";
+        std::cerr << "Error: Could not connect to pipe server.\n"; // Fixed cerr issue
         return false;
     }
 
@@ -70,18 +72,18 @@ bool SendRequestToPipe(const std::string &text, const std::string &engine_name, 
     DWORD bytes_written;
     WriteFile(pipe, request_data.c_str(), request_data.size(), &bytes_written, NULL);
 
-    // Read response from the pipe (same as before)
+    // Read response from the pipe
     char buffer[65536];
     DWORD bytes_read;
     ReadFile(pipe, buffer, sizeof(buffer), &bytes_read, NULL);
 
-    // Deserialize JSON response
+    // Fix the JSON deserialization using a stringstream
+    std::istringstream response_data(std::string(buffer, bytes_read));
     Json::Value response;
     Json::CharReaderBuilder reader;
     std::string errors;
-    std::string response_data(buffer, bytes_read);
 
-    if (!Json::parseFromStream(reader, response_data, &response, &errors))
+    if (!Json::parseFromStream(reader, response_data, &response, &errors)) // Correcting this part
     {
         std::cerr << "Error parsing response from pipe server: " << errors << std::endl;
         CloseHandle(pipe);
@@ -94,7 +96,7 @@ bool SendRequestToPipe(const std::string &text, const std::string &engine_name, 
         const Json::Value &audio_chunks = response["audio_data"];
         for (const auto &chunk : audio_chunks)
         {
-            std::vector<char> chunk_data = chunk.asCString();
+            std::string chunk_data = chunk.asString(); // Correctly extract string from JSON
             audio_data.insert(audio_data.end(), chunk_data.begin(), chunk_data.end());
         }
 
@@ -214,8 +216,10 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
 
         std::vector<char> audio_data;
 
-        // Use the engine_name_ variable to pass the engine name dynamically
-        if (!SendRequestToPipe(text, engine_name_, audio_data))
+        // Convert engine_name_ from wstring to string before passing
+        std::string engine_name = utf8_encode(engine_name_);
+
+        if (!SendRequestToPipe(text, engine_name, audio_data))
         {
             std::cerr << "Failed to get audio data from pipe server.\n";
             return E_FAIL;
