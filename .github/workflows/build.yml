@@ -78,14 +78,14 @@ jobs:
 
       - name: Zip the executables and _libs directory
         run: |
-          cd VoiceServer/dist
-          powershell -Command "Compress-Archive -Path 'VoiceServer/*', 'RegisterVoice/*', '_libs/*' -DestinationPath '../VoiceServer_Uninstalled.zip'"
+          cd VoiceServer
+          powershell -Command "Compress-Archive -Path dist/VoiceServer/*, dist/RegisterVoice/*, _libs/* -DestinationPath VoiceServer_Uninstalled.zip"
 
       - name: Archive the zip of uninstalled version
         uses: actions/upload-artifact@v4
         with:
           name: uninstalled-version
-          path: VoiceServer_Uninstalled.zip
+          path: VoiceServer/VoiceServer_Uninstalled.zip
           
 
       # Archive the compiled executables
