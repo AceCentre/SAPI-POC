@@ -61,7 +61,7 @@ jobs:
         run: |
           cd VoiceServer
           $site_packages = uv run python -c "import site; print(site.getsitepackages()[0])"
-          dir "$site_packages/azure/cognitiveservices/speech"
+          Get-ChildItem -Recurse -Path $site_packages
           uv run python -m PyInstaller RegisterVoice.py --noupx --onedir --noconsole --name "RegisterVoice" -i .\icon.ico --clean --add-binary "$site_packages/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
 
       - name: Compile VoiceServer.py with PyInstaller inside UV virtual environment
