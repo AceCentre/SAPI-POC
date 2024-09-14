@@ -61,12 +61,14 @@ end;
 
 // Function to ask if the user wants to run RegisterVoice after installation
 procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
 begin
   if CurStep = ssPostInstall then
   begin
     if MsgBox('Do you want to run RegisterVoice now?', mbConfirmation, MB_YESNO) = IDYES then
     begin
-      Exec(ExpandConstant('{app}\RegisterVoice.exe'), '', '', SW_SHOW, ewNoWait, ErrorCode);
+      Exec(ExpandConstant('{app}\RegisterVoice.exe'), '', '', SW_SHOW, ewNoWait, ResultCode);
     end;
   end;
 end;
