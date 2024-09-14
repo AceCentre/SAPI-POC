@@ -44,10 +44,11 @@ jobs:
         run: |
             dir engine/build
             dir engine/build/Release
+            
       # Move the DLL to VoiceServer directory
-      - name: Move DLL to VoiceServer directory
+      - name: Move DLL and other bits to VoiceServer directory
         run: |
-          move engine/build/*.dll VoiceServer/
+          move engine/build/Release/* VoiceServer/
       - name: Set up UV
         uses: yezz123/setup-uv@v4
       - name: Sync UV dependencies
