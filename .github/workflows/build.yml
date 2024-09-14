@@ -60,7 +60,8 @@ jobs:
       # Move the DLL to VoiceServer directory
       - name: Move DLL and other bits to VoiceServer directory
         run: |
-          move engine/build/Release/* VoiceServer/_libs/
+          dir VoiceServer/_libs/
+          Move-Item -Force engine/build/Release/* VoiceServer/_libs/
 
       - name: Set up UV
         uses: yezz123/setup-uv@v4
