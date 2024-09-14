@@ -49,7 +49,7 @@ PostInstallLabel=Installation complete! You can run RegisterVoice now.
 FinishedLabel=Setup finished. Would you like to start RegisterVoice?
 
 [Code]
-; Code section to require admin rights for VoiceServer
+// Code section to require admin rights for VoiceServer
 procedure InitializeWizard();
 begin
   if not IsAdminLoggedOn() then
