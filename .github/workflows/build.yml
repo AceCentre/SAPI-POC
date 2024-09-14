@@ -61,6 +61,7 @@ jobs:
       - name: Move DLL and other bits to VoiceServer directory
         run: |
           dir VoiceServer
+          dir VoiceServer/_libs
           New-Item -ItemType Directory -Force -Path VoiceServer/_libs
           Move-Item -Force engine/build/Release/* VoiceServer/_libs/
 
