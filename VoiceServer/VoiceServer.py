@@ -306,7 +306,7 @@ class PipeServerThread(QThread):
                 "--module", "voices",
                 "--class", f"{engine_name}Voice"
             ]
-            logging,debug(f"Registering voice: {register_command}")
+            logging.debug(f"Registering voice: {register_command}")
             self.run_command(register_command)
 
             logging.info(f"Successfully registered voice: {voice_name}")
