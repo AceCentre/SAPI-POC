@@ -1,1 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "aacspeakhelper",
+  "private_key_id": "73ef9c911de31b22a87ab8f9fdf85a2385a8010e",
+  "client_email": "aacspeakhelper@aacspeakhelper.iam.gserviceaccount.com",
   "client_id": "115681345683900408901",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/aacspeakhelper%40aacspeakhelper.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

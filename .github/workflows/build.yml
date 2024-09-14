@@ -34,7 +34,7 @@ jobs:
 
       - name: Print contents of build/bin directory
         run: |
-            dir engine/build/bin
+            dir engine/build
 
       # Move the DLL to VoiceServer directory
       - name: Move DLL to VoiceServer directory
