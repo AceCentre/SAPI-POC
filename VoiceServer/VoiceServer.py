@@ -273,12 +273,15 @@ class PipeServerThread(QThread):
     
     def register_voice(self, voice_iso_code):
         try:
+            # Check if the voice_iso_code contains both engine and voice
+            if "-" not in voice_iso_code:
+                raise ValueError(f"Invalid voice_iso_code format: {voice_iso_code}")
+
             # Split the voice_iso_code to get engine and voice name
             engine_name, voice_name = voice_iso_code.split("-", 1)
 
-            # Log the registration process
             logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
-            
+
             # Register the engine DLL
             engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
             self.run_command(["regsvr32.exe", "/s", engine_dll])
@@ -293,8 +296,6 @@ class PipeServerThread(QThread):
                 '--module', 'voices',
                 '--class', f"{engine_name}Voice"
             ]
-            
-            # Run the registration command
             self.run_command(register_command)
 
             logging.info(f"Successfully registered voice: {voice_iso_code}")
