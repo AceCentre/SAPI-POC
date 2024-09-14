@@ -297,7 +297,6 @@ class PipeServerThread(QThread):
             voice_name = f"{engine_name}-{voice_iso_code}"
             # Set the correct paths for dependencies (adjust this based on actual locations)
             dependencies_path = f"{self.libs_directory};{os.path.dirname(sys.executable)}\\Lib\\site-packages"
-
             register_command = [
                 regvoice_exe, 
                 "--token", f"PYTTS-{engine_name}", 
@@ -307,6 +306,7 @@ class PipeServerThread(QThread):
                 "--module", "voices",
                 "--class", f"{engine_name}Voice"
             ]
+            logging,debug(f"Registering voice: {register_command}")
             self.run_command(register_command)
 
             logging.info(f"Successfully registered voice: {voice_name}")
