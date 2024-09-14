@@ -37,6 +37,73 @@ void Engine::FinalRelease()
     speak_method_.reset();
 }
 
+// Function to send request to pipe server
+bool SendRequestToPipe(const std::string &text, const std::string &engine_name, std::vector<char> &audio_data)
+{
+    // Connect to the pipe
+    HANDLE pipe = CreateFile(
+        R"(\\.\pipe\AACSpeakHelper)", // Pipe name
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        0,
+        NULL);
+
+    if (pipe == INVALID_HANDLE_VALUE)
+    {
+        std::cerr << "Error: Could not connect to pipe server.\n";
+        return false;
+    }
+
+    // Create JSON request
+    Json::Value request;
+    request["action"] = "speak";
+    request["text"] = text;
+    request["engine"] = engine_name; // Now passing dynamic engine name
+
+    std::string request_data = Json::writeString(Json::StreamWriterBuilder(), request);
+
+    // Send request to the pipe server
+    DWORD bytes_written;
+    WriteFile(pipe, request_data.c_str(), request_data.size(), &bytes_written, NULL);
+
+    // Read response from the pipe (same as before)
+    char buffer[65536];
+    DWORD bytes_read;
+    ReadFile(pipe, buffer, sizeof(buffer), &bytes_read, NULL);
+
+    // Deserialize JSON response
+    Json::Value response;
+    Json::CharReaderBuilder reader;
+    std::string errors;
+    std::string response_data(buffer, bytes_read);
+
+    if (!Json::parseFromStream(reader, response_data, &response, &errors))
+    {
+        std::cerr << "Error parsing response from pipe server: " << errors << std::endl;
+        CloseHandle(pipe);
+        return false;
+    }
+
+    if (response["status"] == "success")
+    {
+        // Extract audio data
+        const Json::Value &audio_chunks = response["audio_data"];
+        for (const auto &chunk : audio_chunks)
+        {
+            std::vector<char> chunk_data = chunk.asCString();
+            audio_data.insert(audio_data.end(), chunk_data.begin(), chunk_data.end());
+        }
+
+        CloseHandle(pipe);
+        return true;
+    }
+
+    CloseHandle(pipe);
+    return false;
+}
+
 HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken *pToken)
 {
     slog("Engine::SetObjectToken");
@@ -46,6 +113,13 @@ HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken *pToken)
 
     CSpDynamicString voice_name;
     hr = token_->GetStringValue(L"", &voice_name);
+    if (hr != S_OK)
+    {
+        return hr;
+    }
+
+    CSpDynamicString engine_name; // Add retrieval for engine name
+    hr = token_->GetStringValue(L"Engine", &engine_name);
     if (hr != S_OK)
     {
         return hr;
@@ -73,8 +147,11 @@ HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken *pToken)
     }
 
     slog(L"Path={}", (const wchar_t *)path);
-    slog(L"Module={}", (const wchar_t *)mod);
+    slog(L"Engine={}", (const wchar_t *)engine_name); // Log engine name
     slog(L"Class={}", (const wchar_t *)cls);
+
+    // Store the engine name for later use in the Speak method
+    engine_name_ = std::wstring(engine_name);
 
     pycpp::ScopedGIL lock;
 
@@ -117,8 +194,6 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
 {
     slog("Engine::Speak");
 
-    pycpp::ScopedGIL lock;
-
     for (const auto *text_frag = pTextFragList; text_frag != nullptr; text_frag = text_frag->pNext)
     {
         if (handle_actions(pOutputSite) == 1)
@@ -132,40 +207,28 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
              text_frag->ulTextLen,
              text_frag->pTextStart);
 
-        pycpp::Obj text{pycpp::convert({text_frag->pTextStart, text_frag->ulTextLen})};
-        pycpp::Obj generator(PyObject_CallOneArg(speak_method_, text));
-        assert(PyIter_Check(generator));
+        // Convert wide string to UTF-8
+        std::string text = utf8_encode(std::wstring(text_frag->pTextStart, text_frag->ulTextLen));
 
-        PyObject *item;
-        pycpp::Obj obj;
-        Py_buffer view;
-        int flags = PyBUF_C_CONTIGUOUS | PyBUF_SIMPLE;
+        std::vector<char> audio_data;
 
-        while ((item = PyIter_Next(generator)))
+        // Use the engine_name_ variable to pass the engine name dynamically
+        if (!SendRequestToPipe(text, engine_name_, audio_data))
         {
-            obj = item;
-
-            assert(PyObject_CheckBuffer(obj));
-            if (PyObject_GetBuffer(obj, &view, flags) == -1)
-            {
-                throw pycpp::PythonException("PyObject_GetBuffer failed");
-            }
-
-            assert(view.ndim == 1);
-
-            ULONG written;
-            HRESULT result = pOutputSite->Write(view.buf, view.len, &written);
-            assert(result == S_OK);
-            assert(view.len == written);
-
-            slog("Engine::Speak written={}", written);
-
-            PyBuffer_Release(&view);
+            std::cerr << "Failed to get audio data from pipe server.\n";
+            return E_FAIL;
         }
 
-        slog("Engine::Speak end of fragment");
+        // Write audio data to the output
+        ULONG written;
+        HRESULT result = pOutputSite->Write(audio_data.data(), audio_data.size(), &written);
+        if (result != S_OK || written != audio_data.size())
+        {
+            std::cerr << "Error writing audio data to output site.\n";
+            return E_FAIL;
+        }
 
-        pycpp::throw_on_error();
+        slog("Engine::Speak written={} bytes", written);
     }
 
     return S_OK;

@@ -202,13 +202,14 @@ class PipeServerThread(QThread):
                             success = self.register_voice(tts_engine, engine_name, voice_iso_code)
                             response = {"status": "success" if success else "failure"}
                             win32file.WriteFile(pipe, json.dumps(response).encode())
-                    elif request.get('action') == 'speak_text':
+                    elif request.get('action') == 'speak':
                         engine_name = request.get('engine')
+                        voice_name = request.get('voice')
                         text = request.get('text')
                         if engine_name in self.engines:
                             tts_engine = self.engines[engine_name]
-                            logging.info(f"Speaking text with {engine_name}: {text[:50]}...")
-                            self.speak_text_streamed(pipe, tts_engine, text)
+                            logging.info(f"Speaking text with {engine_name} and voice {voice_name}: {text[:50]}...")
+                            self.speak_text_streamed(pipe, tts_engine, text, voice_name)
                 logging.info("Processing complete. Ready for next connection.")
             except Exception as e:
                 logging.error(f"Pipe server error: {e}", exc_info=True)
@@ -263,14 +264,15 @@ class PipeServerThread(QThread):
         except Exception as e:
             logging.error(f"Error sending large data: {e}")
     
-    def speak_text_streamed(self, tts_engine, text):
-        """Stream the TTS output using speak_streamed (audio will play directly)."""
-        try:
-            # Directly play the TTS audio using speak_streamed
-            tts_engine.speak_streamed(text)
-            logging.info(f"Finished streaming TTS audio for text: {text[:50]}...")
-        except Exception as e:
-            logging.error(f"Error streaming TTS audio: {e}", exc_info=True)
+    def speak_text_streamed(self, pipe, tts_engine, text, voice):
+        """Speaks the text using the TTS engine, streaming the output back."""
+        # Set the voice on the engine
+        if hasattr(tts_engine, "set_voice"):
+            tts_engine.set_voice(voice)
+
+        # Stream the audio chunks to the client
+        for audio_chunk in tts_engine.speak_streamed(text):
+            win32file.WriteFile(pipe, audio_chunk)
     
     def register_voice(self, tts_engine, engine_name, voice_iso_code):
         """Registers the voice with the system."""

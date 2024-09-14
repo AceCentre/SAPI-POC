@@ -11,33 +11,32 @@
 #include "resource.h"
 #include "pycpp.h"
 
-class ATL_NO_VTABLE Engine : 
-	public CComObjectRootEx<CComMultiThreadModel>,
-	public CComCoClass<Engine, &CLSID_PySAPITTSEngine>,
-	public ISpTTSEngine,
-    public ISpObjectWithToken
+class ATL_NO_VTABLE Engine : public CComObjectRootEx<CComMultiThreadModel>,
+                             public CComCoClass<Engine, &CLSID_PySAPITTSEngine>,
+                             public ISpTTSEngine,
+                             public ISpObjectWithToken
 {
 public:
     DECLARE_REGISTRY_RESOURCEID(IDR_PYSAPITTSENGINE)
     DECLARE_PROTECT_FINAL_CONSTRUCT()
 
     BEGIN_COM_MAP(Engine)
-	    COM_INTERFACE_ENTRY(ISpTTSEngine)
-	    COM_INTERFACE_ENTRY(ISpObjectWithToken)
+    COM_INTERFACE_ENTRY(ISpTTSEngine)
+    COM_INTERFACE_ENTRY(ISpObjectWithToken)
     END_COM_MAP()
 
     HRESULT FinalConstruct();
     void FinalRelease();
 
     // ISpObjectWithToken
-    HRESULT __stdcall SetObjectToken(ISpObjectToken * pToken);
-    HRESULT __stdcall GetObjectToken(ISpObjectToken ** ppToken);
+    HRESULT __stdcall SetObjectToken(ISpObjectToken *pToken);
+    HRESULT __stdcall GetObjectToken(ISpObjectToken **ppToken);
 
     // ISpTTSEngine
-    HRESULT __stdcall Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const WAVEFORMATEX * pWaveFormatEx,
-                            const SPVTEXTFRAG* pTextFragList, ISpTTSEngineSite* pOutputSite);
-    HRESULT __stdcall GetOutputFormat(const GUID * pTargetFormatId, const WAVEFORMATEX * pTargetWaveFormatEx,
-                                      GUID * pDesiredFormatId, WAVEFORMATEX ** ppCoMemDesiredWaveFormatEx);
+    HRESULT __stdcall Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const WAVEFORMATEX *pWaveFormatEx,
+                            const SPVTEXTFRAG *pTextFragList, ISpTTSEngineSite *pOutputSite);
+    HRESULT __stdcall GetOutputFormat(const GUID *pTargetFormatId, const WAVEFORMATEX *pTargetWaveFormatEx,
+                                      GUID *pDesiredFormatId, WAVEFORMATEX **ppCoMemDesiredWaveFormatEx);
 
 private:
     CComPtr<ISpObjectToken> token_;
@@ -46,5 +45,9 @@ private:
     // TTS methods
     pycpp::Obj speak_method_;
 
-    int handle_actions(ISpTTSEngineSite* site);
+    // New member for storing the engine name dynamically
+    std::wstring engine_name_;
+
+    // TTS helper methods
+    int handle_actions(ISpTTSEngineSite *site);
 };
