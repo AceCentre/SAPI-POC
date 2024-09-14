@@ -4,7 +4,7 @@
 [Setup]
 AppName=VoiceServer Application
 AppVersion=1.0
-DefaultDirName={pf}\VoiceServer
+DefaultDirName={commonpf}\VoiceServer
 DefaultGroupName=VoiceServer
 AllowNoIcons=no
 PrivilegesRequired=admin
@@ -52,7 +52,7 @@ FinishedLabel=Setup finished. Would you like to start RegisterVoice?
 // Code section to require admin rights for VoiceServer
 procedure InitializeWizard();
 begin
-  if not IsAdminLoggedOn() then
+  if not IsAdmin() then
   begin
     MsgBox('This installer requires administrative privileges. Please restart the installer as an administrator.', mbError, MB_OK);
     WizardForm.Close;
