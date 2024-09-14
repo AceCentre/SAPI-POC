@@ -60,17 +60,15 @@ jobs:
       - name: Compile RegisterVoice.py with PyInstaller inside UV virtual environment
         run: |
           cd VoiceServer
-          uv run python -c "import site, os; print(os.path.join(site.getsitepackages()[0]))" > site_packages_path.txt
-          set /p site_packages=<site_packages_path.txt
-          uv run python -m PyInstaller RegisterVoice.py --noupx --onedir --noconsole --name "RegisterVoice" -i .\icon.ico --clean --add-binary "%site_packages%/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
+          $site_packages = uv run python -c "import site; print(site.getsitepackages()[0])"
+          uv run python -m PyInstaller RegisterVoice.py --noupx --onedir --noconsole --name "RegisterVoice" -i .\icon.ico --clean --add-binary "$site_packages/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
 
-      # Compile VoiceServer.py with PyInstaller and include _libs
       - name: Compile VoiceServer.py with PyInstaller inside UV virtual environment
         run: |
           cd VoiceServer
-          set /p site_packages=<site_packages_path.txt
-          uv run python -m PyInstaller VoiceServer.py --noupx --onedir --noconsole --name "VoiceServer" -i .\icon.ico --clean --add-binary "%site_packages%/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
-
+          $site_packages = uv run python -c "import site; print(site.getsitepackages()[0])"
+          uv run python -m PyInstaller VoiceServer.py --noupx --onedir --noconsole --name "VoiceServer" -i .\icon.ico --clean --add-binary "$site_packages/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
+        
       - name: Build Installer with Inno Setup
         run: |
           cd VoiceServer
