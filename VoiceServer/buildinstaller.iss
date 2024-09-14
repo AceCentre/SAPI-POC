@@ -21,8 +21,8 @@ Source: "dist\VoiceServer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubd
 ; Install the RegisterVoice executable and its additional files (from dist)
 Source: "dist\RegisterVoice\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Install additional dependencies (DLLs, config files, etc.)
-Source: "VoiceServer\_libs\*"; DestDir: "{app}"; Flags: ignoreversion
-Source: "VoiceServer\settings.cfg"; DestDir: "{app}"; Flags: ignoreversion
+Source: "_libs\*"; DestDir: "{app}"; Flags: ignoreversion
+Source: "settings.cfg"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Add a desktop icon for VoiceServer
