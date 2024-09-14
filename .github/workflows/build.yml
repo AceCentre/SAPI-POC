@@ -93,7 +93,7 @@ jobs:
         run: |
           cd VoiceServer
           dir .
-          if (Test-Path "dist/VoiceServer" -and Test-Path "dist/RegisterVoice" -and Test-Path "_libs") {
+          if ((Test-Path "dist/VoiceServer") -and (Test-Path "dist/RegisterVoice") -and (Test-Path "_libs")) {
               # Compress the contents
               powershell -Command "Compress-Archive -Path 'dist/VoiceServer/*','dist/RegisterVoice/*','_libs/*' -DestinationPath 'VoiceServer_Uninstalled.zip'"
           } else {
