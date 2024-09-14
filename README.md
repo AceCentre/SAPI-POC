@@ -11,6 +11,7 @@ or you can download it from [here](https://cmake.org/download/).
 So the build process is as follows:
 
 ```
+cd engine
 mkdir build
 cd build
 cmake ..

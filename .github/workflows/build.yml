@@ -17,10 +17,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Install CMake
-      - name: Install CMake via Chocolatey
-        run: choco install cmake --installargs '"ADD_CMAKE_TO_PATH=System"'
-
       # Build the DLL
       - name: Build DLL using CMake
         run: |
@@ -30,6 +26,10 @@ jobs:
           cmake ..
           cmake --build . --config Debug
           cmake --build . --config Release
+
+      - name: Print contents of build/bin directory
+        run: |
+            dir engine/build/bin
 
       # Move the DLL to VoiceServer directory
       - name: Move DLL to VoiceServer directory
