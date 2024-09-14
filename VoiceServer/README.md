@@ -74,6 +74,9 @@ cd VoiceEngineServer
 
 ### 3. Run the Pipe Service
 
+YOU MUST RUN THIS PART ELEVATED AS IT CALLS regsrvr 32
+
+
 ```bash
 uv run  VoiceServer.py
 ```
@@ -81,6 +84,9 @@ uv run  VoiceServer.py
 This starts the pipe service that listens for TTS-related requests.
 
 ### 4. Run the GUI Application
+
+(you can run this as any user)
+
 
 ```bash
 uv run  VoiceServerGUI.py
