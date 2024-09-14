@@ -7,16 +7,18 @@
 #include <fmt/format.h>
 #include <fmt/xchar.h>
 
-namespace {
-
-std::string utf8_encode(const std::wstring& wstr)
+namespace
 {
-    if (wstr.empty()) return std::string();
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
-    std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
-    return strTo;
-}
+
+    std::string utf8_encode(const std::wstring &wstr)
+    {
+        if (wstr.empty())
+            return std::string();
+        int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+        std::string strTo(size_needed, 0);
+        WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+        return strTo;
+    }
 
 } // namespace
 
@@ -92,16 +94,12 @@ HRESULT __stdcall Engine::SetObjectToken(ISpObjectToken* pToken)
     pycpp::Obj module {PyImport_ImportModule(mod_utf8.c_str())};
     pycpp::Obj dict(pycpp::incref(PyModule_GetDict(module)));
     pycpp::Obj voice_class(pycpp::incref(PyDict_GetItemString(dict, cls_utf8.c_str())));
+
+    // Call the Python `VoiceServerVoice` class (or whatever class is defined in Python)
     pycpp::Obj voice_object(PyObject_CallNoArgs(voice_class));
     speak_method_ = PyObject_GetAttrString(voice_object, "speak");
 
     return hr;
-}
-
-HRESULT __stdcall Engine::GetObjectToken(ISpObjectToken** ppToken)
-{
-    slog("Engine::GetObjectToken");
-    return SpGenericGetObjectToken(ppToken, token_);
 }
 
 HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const WAVEFORMATEX* pWaveFormatEx,
@@ -122,7 +120,10 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
             text_frag->ulTextLen, 
             text_frag->pTextStart);
 
+        // Prepare the text to send to the pipe service
         pycpp::Obj text {pycpp::convert({text_frag->pTextStart, text_frag->ulTextLen})};
+        
+        // Call the Python `speak` method via the pipe service
         pycpp::Obj generator(PyObject_CallOneArg(speak_method_, text));
         assert(PyIter_Check(generator));
 
@@ -159,28 +160,158 @@ HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const
     return S_OK;
 }
 
-HRESULT __stdcall Engine::GetOutputFormat(const GUID* pTargetFormatId, const WAVEFORMATEX* pTargetWaveFormatEx,
-                                          GUID* pDesiredFormatId, WAVEFORMATEX** ppCoMemDesiredWaveFormatEx)
+HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const WAVEFORMATEX *pWaveFormatEx,
+                                const SPVTEXTFRAG *pTextFragList, ISpTTSEngineSite *pOutputSite)
+{
+    slog("Engine::Speak");
+
+    pycpp::ScopedGIL lock;
+
+    for (const auto *text_frag = pTextFragList; text_frag != nullptr; text_frag = text_frag->pNext)
+    {
+        if (handle_actions(pOutputSite) == 1)
+        {
+            return S_OK;
+        }
+
+        slog(L"action={}, offset={}, length={}, text=\"{}\"",
+             (int)text_frag->State.eAction,
+             text_frag->ulTextSrcOffset,
+             text_frag->ulTextLen,
+             text_frag->pTextStart);
+
+        // Prepare the text to send to the pipe service
+        pycpp::Obj text{pycpp::convert({text_frag->pTextStart, text_frag->ulTextLen})};
+
+        // Call the Python `speak` method via the pipe service
+        pycpp::Obj generator(PyObject_CallOneArg(speak_method_, text));
+        assert(PyIter_Check(generator));
+
+        PyObject *item;
+        pycpp::Obj obj;
+        Py_buffer view;
+        int flags = PyBUF_C_CONTIGUOUS | PyBUF_SIMPLE;
+
+        while ((item = PyIter_Next(generator)))
+        {
+            obj = item;
+
+            assert(PyObject_CheckBuffer(obj));
+            if (PyObject_GetBuffer(obj, &view, flags) == -1)
+            {
+                throw pycpp::PythonException("PyObject_GetBuffer failed");
+            }
+
+            assert(view.ndim == 1);
+
+            ULONG written;
+            HRESULT result = pOutputSite->Write(view.buf, view.len, &written);
+            assert(result == S_OK);
+            assert(view.len == written);
+
+            slog("Engine::Speak written={}", written);
+
+            PyBuffer_Release(&view);
+        }
+
+        slog("Engine::Speak end of fragment");
+
+        pycpp::throw_on_error();
+    }
+
+    return S_OK;
+}
+
+HRESULT __stdcall Engine::GetObjectToken(ISpObjectToken **ppToken)
+{
+    slog("Engine::GetObjectToken");
+    return SpGenericGetObjectToken(ppToken, token_);
+}
+
+HRESULT __stdcall Engine::Speak(DWORD dwSpeakFlags, REFGUID rguidFormatId, const WAVEFORMATEX *pWaveFormatEx,
+                                const SPVTEXTFRAG *pTextFragList, ISpTTSEngineSite *pOutputSite)
+{
+    slog("Engine::Speak");
+
+    pycpp::ScopedGIL lock;
+
+    for (const auto *text_frag = pTextFragList; text_frag != nullptr; text_frag = text_frag->pNext)
+    {
+        if (handle_actions(pOutputSite) == 1)
+        {
+            return S_OK;
+        }
+
+        slog(L"action={}, offset={}, length={}, text=\"{}\"",
+             (int)text_frag->State.eAction,
+             text_frag->ulTextSrcOffset,
+             text_frag->ulTextLen,
+             text_frag->pTextStart);
+
+        pycpp::Obj text{pycpp::convert({text_frag->pTextStart, text_frag->ulTextLen})};
+        pycpp::Obj generator(PyObject_CallOneArg(speak_method_, text));
+        assert(PyIter_Check(generator));
+
+        PyObject *item;
+        pycpp::Obj obj;
+        Py_buffer view;
+        int flags = PyBUF_C_CONTIGUOUS | PyBUF_SIMPLE;
+
+        while ((item = PyIter_Next(generator)))
+        {
+            obj = item;
+
+            assert(PyObject_CheckBuffer(obj));
+            if (PyObject_GetBuffer(obj, &view, flags) == -1)
+            {
+                throw pycpp::PythonException("PyObject_GetBuffer failed");
+            }
+
+            assert(view.ndim == 1);
+
+            ULONG written;
+            HRESULT result = pOutputSite->Write(view.buf, view.len, &written);
+            assert(result == S_OK);
+            assert(view.len == written);
+
+            slog("Engine::Speak written={}", written);
+
+            PyBuffer_Release(&view);
+        }
+
+        slog("Engine::Speak end of fragment");
+
+        pycpp::throw_on_error();
+    }
+
+    return S_OK;
+}
+
+HRESULT __stdcall Engine::GetOutputFormat(const GUID *pTargetFormatId, const WAVEFORMATEX *pTargetWaveFormatEx,
+                                          GUID *pDesiredFormatId, WAVEFORMATEX **ppCoMemDesiredWaveFormatEx)
 {
     slog("Engine::GetOutputFormat");
     // FIXME: Query audio format from Python voice
     return SpConvertStreamFormatEnum(SPSF_24kHz16BitMono, pDesiredFormatId, ppCoMemDesiredWaveFormatEx);
 }
 
-int Engine::handle_actions(ISpTTSEngineSite* site)
+int Engine::handle_actions(ISpTTSEngineSite *site)
 {
     DWORD actions = site->GetActions();
 
-    if (actions & SPVES_CONTINUE) {
+    if (actions & SPVES_CONTINUE)
+    {
         slog("CONTINUE");
     }
 
-    if (actions & SPVES_ABORT) {
+    if (actions & SPVES_ABORT)
+    {
         slog("ABORT");
         return 1;
     }
 
-    if (actions & SPVES_SKIP) {
+    if (actions & SPVES_SKIP)
+    {
         SPVSKIPTYPE skip_type;
         LONG num_items;
         auto result = site->GetSkipInfo(&skip_type, &num_items);
@@ -189,15 +320,16 @@ int Engine::handle_actions(ISpTTSEngineSite* site)
         slog("num_items={}", num_items);
     }
 
-    if (actions & SPVES_RATE) {
+    if (actions & SPVES_RATE)
+    {
         LONG rate;
         auto result = site->GetRate(&rate);
         assert(result == S_OK);
         slog("rate={}", rate);
-
     }
 
-    if (actions & SPVES_VOLUME) {
+    if (actions & SPVES_VOLUME)
+    {
         USHORT volume;
         auto result = site->GetVolume(&volume);
         assert(result == S_OK);
