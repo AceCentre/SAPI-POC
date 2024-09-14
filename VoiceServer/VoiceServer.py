@@ -329,13 +329,6 @@ class PipeServerThread(QThread):
         except FileNotFoundError:
             return False
         
-    def run_command(self, command):
-        """Utility to run a system command."""
-        try:
-            subprocess.run(command, check=True)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Command failed: {command}\nError: {e}")
-            raise
 
 
 class MainWindow(QWidget):
