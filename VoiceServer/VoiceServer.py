@@ -3,9 +3,11 @@ import os
 import sys
 import warnings
 import json
-import time
 import win32file
 import win32pipe
+import win32security
+import ntsecuritycon as con
+
 from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import QThread, Signal, Slot, QTimer
@@ -13,6 +15,7 @@ import configparser
 from dotenv import load_dotenv
 from tts_wrapper import MicrosoftClient, GoogleClient, PollyClient, SherpaOnnxClient
 from tts_wrapper import MicrosoftTTS, GoogleTTS, PollyTTS, SherpaOnnxTTS
+import subprocess
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -24,10 +27,12 @@ def setup_logging():
     else:
         log_dir = os.path.dirname(os.path.abspath(__file__))
 
+    print(f"Log directory: {log_dir}")
+
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
     log_file = os.path.join(log_dir, 'app.log')
-
+    print(f"Log file: {log_file}")
     logging.basicConfig(
         filename=log_file,
         filemode='a',
@@ -142,6 +147,7 @@ class PipeServerThread(QThread):
     def __init__(self):
         super().__init__()
         self.engines = None
+        self.libs_directory = os.path.join(os.getcwd(), '_libs') 
 
     def init_engines(self, config_path):
         """Initialize engines based on the configuration file."""
@@ -153,6 +159,11 @@ class PipeServerThread(QThread):
     def run(self):
         """Run the pipe server to listen for client requests."""
         pipe_name = r'\\.\pipe\VoiceEngineServer'
+        security_attributes = win32security.SECURITY_ATTRIBUTES()
+        security_descriptor = win32security.SECURITY_DESCRIPTOR()
+        security_descriptor.SetSecurityDescriptorDacl(1, None, 0)  # Allow full access to everyone
+        security_attributes.SECURITY_DESCRIPTOR = security_descriptor
+
         while True:
             pipe = None
             try:
@@ -164,7 +175,7 @@ class PipeServerThread(QThread):
                 1024 * 1024,  # Increase the buffer size to 1MB
                 1024 * 1024,  # Increase the buffer size for reading
                 0,
-                None)
+                security_attributes)
                 logging.info("Waiting for client connection...")
                 win32pipe.ConnectNamedPipe(pipe, None)
                 logging.info("Client connected.")
@@ -182,8 +193,7 @@ class PipeServerThread(QThread):
                     elif request.get('action') == 'list_voices':
                         engine_name = request.get('engine')
                         if engine_name in self.engines:
-                            voices = self.fetch_voices(engine_name)
-                            win32file.WriteFile(pipe, json.dumps(voices).encode())
+                            self.fetch_voices(engine_name, pipe)
                     elif request.get('action') == 'set_voice':
                         engine_name = request.get('engine')
                         voice_iso_code = request.get('voice_iso_code')
@@ -263,37 +273,38 @@ class PipeServerThread(QThread):
             logging.error(f"Error streaming TTS audio: {e}", exc_info=True)
     
     def register_voice(self, tts_engine, engine_name, voice_iso_code):
-        """Registers the voice by first registering the engine, then the voice."""
-        try:
-            # Step 1: Register the engine (update path to _libs directory)
-            engine_dll = os.path.join(os.getcwd(), "_libs", "pysapittsengine.dll")
-            if not self.is_engine_registered(engine_dll):
-                logging.info(f"Registering engine: {engine_dll}")
-                self.run_command(["regsvr32.exe", "/s", engine_dll])
-                logging.info(f"Engine {engine_dll} registered successfully.")
+        """Registers the voice with the system."""
+        voice_name = None  # Define voice_name at the start to avoid UnboundLocalError
 
-            # Step 2: Register the voice using `regvoice.exe` (update path to _libs directory)
-            voice_name = tts_engine.get_voice_name(voice_iso_code)
-            regvoice_exe = os.path.join(os.getcwd(), "libs", "regvoice.exe")
-            
-            voice_registration_command = [
-                regvoice_exe,
-                "--token", f"PYTTS-{voice_name.replace(' ', '')}",
-                "--name", voice_name,
-                "--vendor", engine_name,  # Adjusted to dynamically use engine name
-                "--path", os.path.join(os.getcwd(), "libs"),  # Adjust the path to the `_libs` directory
+        try:
+            # Assume engine_dll points to the correct DLL for registration
+            engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
+            logging.info(f"Registering engine: {engine_dll}")
+
+            # Run the registration command
+            self.run_command(["regsvr32.exe", "/s", engine_dll])
+
+            # Assume regvoice.exe command is used to register the voice
+            voice_name = f"{engine_name}-{voice_iso_code}"
+            register_command = [
+                "regvoice.exe", 
+                "--token", f"PYTTS-{engine_name}", 
+                "--name", voice_name, 
+                "--vendor", "Microsoft", 
+                "--path", "C:\\Path\\To\\Your\\Engine;C:\\Path\\To\\Another\\Dependency",
                 "--module", "voices",
-                "--class", voice_iso_code  # Assuming the voice ISO code corresponds to the class
+                "--class", f"{engine_name}Voice"
             ]
-            
-            logging.info(f"Registering voice: {voice_name}")
-            self.run_command(voice_registration_command)
-            logging.info(f"Voice {voice_name} registered successfully.")
+            self.run_command(register_command)
+
+            logging.info(f"Successfully registered voice: {voice_name}")
             return True
-        
-        except Exception as e:
+
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Command failed: {e}")
             logging.error(f"Failed to register voice {voice_name}: {e}")
             return False
+
  
     def is_engine_registered(self, dll_name):
         """Check if the engine DLL is already registered. This is a simplified check."""
