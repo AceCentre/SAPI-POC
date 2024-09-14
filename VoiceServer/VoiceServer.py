@@ -274,48 +274,29 @@ class PipeServerThread(QThread):
         for audio_chunk in tts_engine.speak_streamed(text):
             win32file.WriteFile(pipe, audio_chunk)
     
-    def register_voice(self, tts_engine, engine_name, voice_iso_code):
-        """Registers the voice with the system."""
-        voice_name = None  # Define voice_name at the start to avoid UnboundLocalError
+    def register_voice(self, engine_name, voice_iso_code):
+        """Registers the voice with the system using the custom TTS engine DLL."""
+        voice_name = f"{engine_name}-{voice_iso_code}"  # Voice name format
 
         try:
-            # Assume engine_dll points to the correct DLL for registration
+            # Path to the engine DLL that needs to be registered
             engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
-            regvoice_exe = os.path.join(self.libs_directory, 'regvoice.exe')
 
-            # Check if the DLL and regvoice.exe exist
+            # Check if the DLL exists
             if not os.path.exists(engine_dll):
                 logging.error(f"Engine DLL not found at {engine_dll}")
                 return False
-            if not os.path.exists(regvoice_exe):
-                logging.error(f"regvoice.exe not found at {regvoice_exe}")
-                return False
+
+            # Log the registration process
             logging.info(f"Registering engine: {engine_dll}")
 
-            # Run the registration command
+            # Register the DLL with regsvr32.exe (this tells Windows where the DLL is located)
             self.run_command(["regsvr32.exe", "/s", engine_dll])
-
-            # Assume regvoice.exe command is used to register the voice
-            voice_name = f"{engine_name}-{voice_iso_code}"
-            # Set the correct paths for dependencies (adjust this based on actual locations)
-            dependencies_path = f"{self.libs_directory};{os.path.dirname(sys.executable)}\\Lib\\site-packages"
-            register_command = [
-                regvoice_exe, 
-                "--token", f"PYTTS-{engine_name}", 
-                "--name", voice_name, 
-                "--vendor", "Microsoft", 
-                "--path", dependencies_path,
-                "--module", "voices",
-                "--class", f"{engine_name}Voice"
-            ]
-            logging.debug(f"Registering voice: {register_command}")
-            self.run_command(register_command)
 
             logging.info(f"Successfully registered voice: {voice_name}")
             return True
 
         except subprocess.CalledProcessError as e:
-            logging.error(f"Command failed: {e}")
             logging.error(f"Failed to register voice {voice_name}: {e}")
             return False
 
