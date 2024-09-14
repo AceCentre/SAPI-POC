@@ -74,7 +74,7 @@ jobs:
       - name: Build Installer with Inno Setup
         run: |
           cd VoiceServer
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q buildinstaller.iss
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" .\buildinstaller.iss
 
       # Archive the compiled executables
       - name: Archive the output
