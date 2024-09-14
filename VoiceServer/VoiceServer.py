@@ -315,7 +315,7 @@ class MainWindow(QWidget):
         super().__init__()
         self.pipe_thread = None
         self.tray_icon = None
-        self.icon = QIcon('assets/icon.ico')
+        self.icon = QIcon('icon.ico')
         self.init_ui()
         self.init_pipe_server()
 
