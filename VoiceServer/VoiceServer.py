@@ -7,6 +7,7 @@ import win32file
 import win32pipe
 import win32security
 import ntsecuritycon as con
+import winreg
 
 from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PySide6.QtGui import QIcon, QAction
