@@ -279,6 +279,15 @@ class PipeServerThread(QThread):
         try:
             # Assume engine_dll points to the correct DLL for registration
             engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
+            regvoice_exe = os.path.join(self.libs_directory, 'regvoice.exe')
+
+            # Check if the DLL and regvoice.exe exist
+            if not os.path.exists(engine_dll):
+                logging.error(f"Engine DLL not found at {engine_dll}")
+                return False
+            if not os.path.exists(regvoice_exe):
+                logging.error(f"regvoice.exe not found at {regvoice_exe}")
+                return False
             logging.info(f"Registering engine: {engine_dll}")
 
             # Run the registration command
@@ -286,12 +295,15 @@ class PipeServerThread(QThread):
 
             # Assume regvoice.exe command is used to register the voice
             voice_name = f"{engine_name}-{voice_iso_code}"
+            # Set the correct paths for dependencies (adjust this based on actual locations)
+            dependencies_path = f"{self.libs_directory};{os.path.dirname(sys.executable)}\\Lib\\site-packages"
+
             register_command = [
-                "regvoice.exe", 
+                regvoice_exe, 
                 "--token", f"PYTTS-{engine_name}", 
                 "--name", voice_name, 
                 "--vendor", "Microsoft", 
-                "--path", "C:\\Path\\To\\Your\\Engine;C:\\Path\\To\\Another\\Dependency",
+                "--path", dependencies_path,
                 "--module", "voices",
                 "--class", f"{engine_name}Voice"
             ]
