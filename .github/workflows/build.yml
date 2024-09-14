@@ -17,6 +17,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       # Build the DLL
       - name: Build DLL using CMake
         run: |
@@ -35,12 +40,6 @@ jobs:
       - name: Move DLL to VoiceServer directory
         run: |
           move engine/build/*.dll VoiceServer/
-
-      # Install Python & UV (Universal Virtualenv)
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
       - name: Set up UV
         uses: yezz123/setup-uv@v4
       - name: Sync UV dependencies
