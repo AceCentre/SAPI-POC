@@ -60,8 +60,6 @@ jobs:
       # Move the DLL to VoiceServer directory
       - name: Move DLL and other bits to VoiceServer directory
         run: |
-          dir VoiceServer
-          dir VoiceServer/_libs
           New-Item -ItemType Directory -Force -Path VoiceServer/_libs
           Move-Item -Force engine/build/Release/* VoiceServer/_libs/
 
@@ -94,7 +92,13 @@ jobs:
       - name: Zip the executables and _libs directory
         run: |
           cd VoiceServer
-          powershell -Command "Compress-Archive -Path dist/VoiceServer/*, dist/RegisterVoice/*, _libs -DestinationPath VoiceServer_Uninstalled.zip"
+          dir .
+          if (Test-Path "dist/VoiceServer" -and Test-Path "dist/RegisterVoice" -and Test-Path "_libs") {
+              # Compress the contents
+              powershell -Command "Compress-Archive -Path 'dist/VoiceServer/*','dist/RegisterVoice/*','_libs/*' -DestinationPath 'VoiceServer_Uninstalled.zip'"
+          } else {
+              Write-Host "One or more directories are missing. Compression aborted."
+          }
 
       - name: Archive the zip of uninstalled version
         uses: actions/upload-artifact@v4
