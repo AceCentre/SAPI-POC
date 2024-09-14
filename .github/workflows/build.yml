@@ -30,13 +30,25 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Build the DLL
+      # Install vcpkg (if not already installed)
+      - name: Set up vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.bat
+          
+      # Install JsonCPP with vcpkg
+      - name: Install JsonCPP via vcpkg
+        run: |
+          ./vcpkg/vcpkg install jsoncpp
+          ./vcpkg/vcpkg integrate install  # To set up vcpkg to work with CMake
+
+      # Build the DLL using CMake
       - name: Build DLL using CMake
         run: |
           cd engine
           mkdir build
           cd build
-          cmake ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=../../vcpkg/scripts/buildsystems/vcpkg.cmake ..
           cmake --build . --config Debug
           cmake --build . --config Release
 

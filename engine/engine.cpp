@@ -6,6 +6,8 @@
 #include <string_view>
 #include <fmt/format.h>
 #include <fmt/xchar.h>
+#include <iostream>
+#include <json/json.h>
 
 namespace
 {
