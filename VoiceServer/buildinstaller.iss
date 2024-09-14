@@ -24,9 +24,7 @@ Source: "dist\VoiceServer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubd
 Source: "dist\RegisterVoice\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Install additional dependencies (DLLs, config files, etc.)
 Source: "_libs\*"; DestDir: "{app}\_libs"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "VoiceServer\_libs\voice_server.py"; DestDir: "{app}\_libs"; Flags: ignoreversion
 Source: "settings.cfg"; DestDir: "{app}"; Flags: ignoreversion
-Source: "_libs\python312\*"; DestDir: "{app}\_libs\python312"; Flags: ignoreversion recursesubdirs
 
 [Icons]
 ; Add a desktop icon for VoiceServer
