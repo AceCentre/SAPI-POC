@@ -16,13 +16,13 @@ SetupIconFile=icon.ico
 DisableProgramGroupPage=yes
 
 [Files]
-; Install the VoiceServer executable
-Source: "build\VoiceServer.exe"; DestDir: "{app}"; Flags: ignoreversion
-; Install the RegisterVoice executable
-Source: "build\RegisterVoice.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Install the VoiceServer executable and its additional files (from dist)
+Source: "dist\VoiceServer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Install the RegisterVoice executable and its additional files (from dist)
+Source: "dist\RegisterVoice\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Install additional dependencies (DLLs, config files, etc.)
-Source: "VoiceServer.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "settings.cfg"; DestDir: "{app}"; Flags: ignoreversion
+Source: "VoiceServer\_libs\*"; DestDir: "{app}"; Flags: ignoreversion
+Source: "VoiceServer\settings.cfg"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Add a desktop icon for VoiceServer
