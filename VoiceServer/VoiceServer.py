@@ -273,28 +273,24 @@ class PipeServerThread(QThread):
     
     def register_voice(self, voice_iso_code):
         try:
-            # Check if the voice_iso_code contains both engine and voice
-            if "-" not in voice_iso_code:
-                raise ValueError(f"Invalid voice_iso_code format: {voice_iso_code}")
-
             # Split the voice_iso_code to get engine and voice name
             engine_name, voice_name = voice_iso_code.split("-", 1)
 
             logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
 
-            # Register the engine DLL
+            # Register the engine DLL (this registers the SAPI TTS engine)
             engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
             self.run_command(["regsvr32.exe", "/s", engine_dll])
 
-            # Register the voice using regvoice.exe
+            # Register the voice with SAPI using regvoice.exe
             register_command = [
                 os.path.join(self.libs_directory, 'regvoice.exe'),
-                '--token', f"PYTTS-{engine_name}",
-                '--name', voice_name,
-                '--vendor', engine_name,
-                '--path', f"{self.libs_directory};{self.venv_lib_path}",
-                '--module', 'voices',
-                '--class', f"{engine_name}Voice"
+                '--token', f"PYTTS-{engine_name}",  # Unique token for the engine
+                '--name', voice_name,                # Voice name
+                '--vendor', engine_name,             # Engine vendor
+                '--path', self.libs_directory,       # Path to DLLs (not Python packages)
+                '--module', 'voices',                # Python module, remains 'voices'
+                '--class', f"{engine_name}Voice"     # Python class for the voice
             ]
             self.run_command(register_command)
 
