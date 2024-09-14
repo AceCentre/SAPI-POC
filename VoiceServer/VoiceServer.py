@@ -265,31 +265,34 @@ class PipeServerThread(QThread):
     def register_voice(self, tts_engine, engine_name, voice_iso_code):
         """Registers the voice by first registering the engine, then the voice."""
         try:
-            # Step 1: Register the engine (assumed dll file is named pysapittsengine.dll)
+            # Step 1: Register the engine (update path to _libs directory)
             engine_dll = os.path.join(os.getcwd(), "libs", "pysapittsengine.dll")
             if not self.is_engine_registered(engine_dll):
                 logging.info(f"Registering engine: {engine_dll}")
                 self.run_command(["regsvr32.exe", "/s", engine_dll])
                 logging.info(f"Engine {engine_dll} registered successfully.")
- 
-            # Step 2: Register the voice using `regvoice.exe`
+
+            # Step 2: Register the voice using `regvoice.exe` (update path to _libs directory)
             voice_name = tts_engine.get_voice_name(voice_iso_code)
+            regvoice_exe = os.path.join(os.getcwd(), "libs", "regvoice.exe")
+            
             voice_registration_command = [
-                "regvoice.exe",
+                regvoice_exe,
                 "--token", f"PYTTS-{voice_name.replace(' ', '')}",
                 "--name", voice_name,
-                "--vendor", "Microsoft",  # Adjust as needed
-                "--path", "C:\\Work\\SAPI-POC;C:\\Work\\build\\venv\\Lib\\site-packages",
+                "--vendor", engine_name,  # Adjusted to dynamically use engine name
+                "--path", os.path.join(os.getcwd(), "libs"),  # Adjust the path to the `_libs` directory
                 "--module", "voices",
                 "--class", voice_iso_code  # Assuming the voice ISO code corresponds to the class
             ]
+            
             logging.info(f"Registering voice: {voice_name}")
             self.run_command(voice_registration_command)
             logging.info(f"Voice {voice_name} registered successfully.")
             return True
- 
+        
         except Exception as e:
-            logging.error(f"Error registering voice: {e}")
+            logging.error(f"Failed to register voice {voice_name}: {e}")
             return False
  
     def is_engine_registered(self, dll_name):
