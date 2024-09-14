@@ -21,7 +21,7 @@ Source: "dist\VoiceServer\*"; DestDir: "{app}"; Flags: ignoreversion recursesubd
 ; Install the RegisterVoice executable and its additional files (from dist)
 Source: "dist\RegisterVoice\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Install additional dependencies (DLLs, config files, etc.)
-Source: "_libs\*"; DestDir: "{app}"; Flags: ignoreversion
+Source: "_libs\*"; DestDir: "{app}\_libs"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "settings.cfg"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
@@ -66,7 +66,7 @@ begin
   begin
     if MsgBox('Do you want to run RegisterVoice now?', mbConfirmation, MB_YESNO) = IDYES then
     begin
-      ShellExec('', ExpandConstant('{app}\RegisterVoice.exe'), '', SW_SHOW);
+      Exec(ExpandConstant('{app}\RegisterVoice.exe'), '', '', SW_SHOW, ewNoWait, ErrorCode);
     end;
   end;
 end;

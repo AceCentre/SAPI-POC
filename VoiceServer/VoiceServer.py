@@ -266,7 +266,7 @@ class PipeServerThread(QThread):
         """Registers the voice by first registering the engine, then the voice."""
         try:
             # Step 1: Register the engine (update path to _libs directory)
-            engine_dll = os.path.join(os.getcwd(), "libs", "pysapittsengine.dll")
+            engine_dll = os.path.join(os.getcwd(), "_libs", "pysapittsengine.dll")
             if not self.is_engine_registered(engine_dll):
                 logging.info(f"Registering engine: {engine_dll}")
                 self.run_command(["regsvr32.exe", "/s", engine_dll])

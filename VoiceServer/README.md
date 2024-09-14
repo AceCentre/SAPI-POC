@@ -32,10 +32,7 @@ Additionally, a **simple GUI** is included to:
 ## Requirements
 
 - Python 3.11+
-- Windows OS (due to `win32file` for pipe communication)
-- `py3-tts-wrapper` for TTS engine integration.
-- `pywin32` for handling Windows Named Pipes.
-- `PySide6` for the GUI.
+- Windows OS
 
 ## Installation
 
@@ -43,35 +40,51 @@ Additionally, a **simple GUI** is included to:
 
 Using **\`uv\`** package manager, you can install all the necessary dependencies:
 
-\`\`\`bash
-uv install
-\`\`\`
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+uv sync
+```
 
-This installs:
-- **py3-tts-wrapper**: A wrapper for multiple TTS engines.
-- **pywin32**: For handling Windows named pipes.
-- **PySide6**: For building the GUI.
+Next - YOU MUST Build the dll. so like this
+    
+```powershell
+cd ..\VoiceEngineServer\engine
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Debug
+cmake --build . --config Release
+```
+
+move the Release folder to the VoiceEngineServer folder to _libs dir relative to the VoiceServer.py file
+
+```powershell
+mv .\engine\build\Release VoiceServer\_libs
+```
+
 
 ### 2. Clone the Repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/AceCentre/SAPI-POC/VoiceSAPI-POC.git
 cd VoiceEngineServer
-\`\`\`
+```
+
+! Note: You may need to update your PATH environment variable to include the `uv` package manager.
 
 ### 3. Run the Pipe Service
 
-\`\`\`bash
-python voice_server.py
-\`\`\`
+```bash
+uv run  VoiceServer.py
+```
 
 This starts the pipe service that listens for TTS-related requests.
 
 ### 4. Run the GUI Application
 
-\`\`\`bash
-python voice_selection_gui.py
-\`\`\`
+```bash
+uv run  VoiceServerGUI.py
+```
 
 This launches the GUI that allows you to select and register TTS voices.
 
@@ -105,40 +118,40 @@ The GUI provides a simple way to:
 
 #### List Engines:
 
-\`\`\`json
+```json
 {
   "action": "list_engines"
 }
-\`\`\`
+```
 
 #### List Voices for an Engine:
 
-\`\`\`json
+```json
 {
   "action": "list_voices",
   "engine": "Microsoft"
 }
-\`\`\`
+```
 
 #### Speak Text:
 
-\`\`\`json
+```json
 {
   "action": "speak_text",
   "engine": "Google",
   "text": "Hello, how are you?"
 }
-\`\`\`
+```
 
 #### Register a Voice:
 
-\`\`\`json
+```json
 {
   "action": "set_voice",
   "engine": "Microsoft",
   "voice_iso_code": "en-US-JessaNeural"
 }
-\`\`\`
+```
 
 ## GUI Application
 
