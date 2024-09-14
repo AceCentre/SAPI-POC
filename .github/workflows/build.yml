@@ -60,13 +60,13 @@ jobs:
       - name: Compile RegisterVoice.py with Nuitka inside UV virtual environment
         run: |
           cd VoiceServer
-          uv run python -m nuitka --standalone RegisterVoice.py --include-data-dir=_libs --windows-icon-from-ico=icon.ico --disable-console
+          uv run python -m nuitka --standalone RegisterVoice.py --include-data-dir=_libs=libs --windows-icon-from-ico=icon.ico --disable-console
 
       # Compile VoiceServer.py with Nuitka and include _libs
       - name: Compile VoiceServer.py with Nuitka inside UV virtual environment
         run: |
           cd VoiceServer
-          uv run python -m nuitka --standalone VoiceServer.py --include-data-dir=_libs --windows-icon-from-ico=icon.ico --windows-uac-admin --disable-console
+          uv run python -m nuitka --standalone VoiceServer.py --include-data-dir=_libs=libs --windows-icon-from-ico=icon.ico --windows-uac-admin --disable-console
 
 
       - name: Build Installer with Inno Setup
