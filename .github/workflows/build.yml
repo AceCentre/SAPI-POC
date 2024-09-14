@@ -59,6 +59,10 @@ jobs:
           cd VoiceServer
           uv run python -m nuitka --standalone --onefile RegisterVoice.py
 
+      - name: Build Installer with Inno Setup
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /Q buildinstaller.iss
+
       # Archive the compiled executables
       - name: Archive the output
         uses: actions/upload-artifact@v4
