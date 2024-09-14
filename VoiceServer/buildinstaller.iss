@@ -15,8 +15,7 @@ SolidCompression=yes
 SetupIconFile=icon.ico
 DisableProgramGroupPage=yes
 ; Enable logging
-OutputManifestFile=yes
-Log={userdesktop}\install-log.txt
+SetupLogging=yes
 
 [Files]
 ; Install the VoiceServer executable and its additional files (from dist)
