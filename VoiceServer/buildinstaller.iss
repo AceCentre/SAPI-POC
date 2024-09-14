@@ -66,7 +66,7 @@ begin
   begin
     if MsgBox('Do you want to run RegisterVoice now?', mbConfirmation, MB_YESNO) = IDYES then
     begin
-      ShellExec('', ExpandConstant('{app}\RegisterVoice.exe'), '', '', SW_SHOW);
+      ShellExec('', ExpandConstant('{app}\RegisterVoice.exe'), '', SW_SHOW);
     end;
   end;
 end;
