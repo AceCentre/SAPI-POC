@@ -59,7 +59,7 @@ begin
   end;
 end;
 
-; Function to ask if the user wants to run RegisterVoice after installation
+// Function to ask if the user wants to run RegisterVoice after installation
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
