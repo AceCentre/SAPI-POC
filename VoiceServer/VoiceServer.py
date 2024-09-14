@@ -196,6 +196,11 @@ class PipeServerThread(QThread):
                             self.fetch_voices(engine_name, pipe)
                     elif request.get('action') == 'set_voice':
                         voice_iso_code = request.get('voice_iso_code')
+                        # Check and register the SAPI engine if not already registered
+                        engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
+                        if not self.is_engine_registered(r"SOFTWARE\Microsoft\Speech\Voices\Tokens\PYTTS-Microsoft\InprocServer32"):
+                            self.register_sapi_engine(engine_dll)
+                        # Register the voice
                         success = self.register_voice(voice_iso_code) 
                         response = {"status": "success" if success else "failure"}
                         win32file.WriteFile(pipe, json.dumps(response).encode())
@@ -271,68 +276,59 @@ class PipeServerThread(QThread):
         for audio_chunk in tts_engine.speak_streamed(text):
             win32file.WriteFile(pipe, audio_chunk)
   
-    
-    def register_voice(self, voice_iso_code):
+    def register_sapi_engine(self, engine_dll):
+        """Register the SAPI engine DLL for both 32-bit and 64-bit registry paths."""
         try:
-            # Split the voice_iso_code to get engine and voice name
-            engine_name, voice_name = voice_iso_code.split("-", 1)
-
-            logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
-
-            # Register the engine DLL (this registers the SAPI TTS engine)
-            engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
-            self.run_command(["regsvr32.exe", "/s", engine_dll])
-
-            # Register the voice with SAPI using regvoice.exe
-            register_command = [
-                os.path.join(self.libs_directory, 'regvoice.exe'),
-                '--token', f"PYTTS-{engine_name}",  # Unique token for the engine
-                '--name', voice_name,                # Voice name
-                '--vendor', engine_name,             # Engine vendor
-                '--path', self.libs_directory,       # Path to DLLs (not Python packages)
-                '--module', 'voices',                # Python module, remains 'voices'
-                '--class', f"{engine_name}Voice"     # Python class for the voice
+            key_paths = [
+                r"SOFTWARE\Microsoft\Speech\Voices\Tokens\PYTTS-Microsoft\InprocServer32",  # 64-bit
+                r"SOFTWARE\WOW6432Node\Microsoft\Speech\Voices\Tokens\PYTTS-Microsoft\InprocServer32"  # 32-bit
             ]
-            self.run_command(register_command)
-
-            # Add InprocServer32 to both 64-bit and 32-bit registries
-            self.add_inprocserver32_to_registry(f"PYTTS-{engine_name}", engine_dll)
-
-            logging.info(f"Successfully registered voice: {voice_iso_code}")
+            
+            for key_path in key_paths:
+                with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, engine_dll)
+                    winreg.SetValueEx(key, "ThreadingModel", 0, winreg.REG_SZ, "Both")
+                logging.info(f"Successfully registered SAPI engine at {key_path}")
             return True
-
         except Exception as e:
-            logging.error(f"Failed to register voice {voice_iso_code}: {e}")
+            logging.error(f"Failed to register SAPI engine: {e}")
             return False
 
-
-    def add_inprocserver32_to_registry(self, token_name, engine_dll):
-        # Add the InprocServer32 key to both 64-bit and 32-bit registry paths
-
-        registry_paths = [
-            r"SOFTWARE\Microsoft\Speech\Voices\Tokens",
-            r"SOFTWARE\WOW6432Node\Microsoft\Speech\Voices\Tokens"
-        ]
-
-        for registry_path in registry_paths:
-            full_path = f"{registry_path}\\{token_name}\\InprocServer32"
-            try:
-                with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, full_path) as key:
-                    winreg.SetValueEx(key, None, 0, winreg.REG_SZ, engine_dll)
-                logging.info(f"Added InprocServer32 to {full_path}")
-            except Exception as e:
-                logging.error(f"Failed to add InprocServer32 to {full_path}: {e}")
-
- 
-    def is_engine_registered(self, dll_name):
-        """Check if the engine DLL is already registered. This is a simplified check."""
+    def register_voice(self, voice_id):
+        """Register the voice in both 32-bit and 64-bit registry paths."""
         try:
-            result = subprocess.run(["regsvr32.exe", "/n", dll_name], capture_output=True)
-            return result.returncode == 0
+            engine_name, voice_name = voice_id.split("-", 1)
+            logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
+            
+            token = f"PYTTS-{engine_name}"
+            key_paths = [
+                f"SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\{token}",  # 64-bit
+                f"SOFTWARE\\WOW6432Node\\Microsoft\\Speech\\Voices\\Tokens\\{token}"  # 32-bit
+            ]
+            
+            for key_path in key_paths:
+                with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                    winreg.SetValueEx(key, "Name", 0, winreg.REG_SZ, voice_name)
+                    winreg.SetValueEx(key, "Vendor", 0, winreg.REG_SZ, engine_name)
+                    winreg.SetValueEx(key, "Language", 0, winreg.REG_SZ, "409")  # Adjust language if needed
+                    winreg.SetValueEx(key, "Gender", 0, winreg.REG_SZ, "Female")  # Adjust gender
+                    winreg.SetValueEx(key, "Age", 0, winreg.REG_SZ, "Adult")
+                    winreg.SetValueEx(key, "Path", 0, winreg.REG_SZ, self.libs_directory)
+                    winreg.SetValueEx(key, "Module", 0, winreg.REG_SZ, "voices")
+                    winreg.SetValueEx(key, "Class", 0, winreg.REG_SZ, f"{engine_name}Voice")
+                logging.info(f"Successfully registered voice {voice_name} at {key_path}")
+            return True
         except Exception as e:
-            logging.error(f"Failed to check engine registration: {e}")
-            return False
+            logging.error(f"Failed to register voice {voice_name}: {e}")
  
+    def is_engine_registered(self, key_path):
+        """Check if the engine DLL is already registered."""
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_READ):
+                return True
+        except FileNotFoundError:
+            return False
+        
     def run_command(self, command):
         """Utility to run a system command."""
         try:
