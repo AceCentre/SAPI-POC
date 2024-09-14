@@ -48,26 +48,26 @@ jobs:
       # Move the DLL to VoiceServer directory
       - name: Move DLL and other bits to VoiceServer directory
         run: |
-          move engine/build/Release/* VoiceServer/
+          mkdir -p VoiceServer/_libs
+          move engine/build/Release/* VoiceServer/_libs/
       - name: Set up UV
         uses: yezz123/setup-uv@v4
       - name: Sync UV dependencies
         run: |
           cd VoiceServer
           uv sync   
-      # Compile VoiceServer.py using Nuitka inside UV virtual environment
-      - name: Compile VoiceServer.py with Nuitka
-        run: |
-          cd VoiceServer
-          dir
-          uv run python -m nuitka --standalone --onefile VoiceServer.py
-        # uv run python -m nuitka --standalone --onefile VoiceServer.py --include-data-files=pysapittsengine.dll=.
 
-      # Compile RegisterVoice.py using Nuitka inside UV virtual environment
-      - name: Compile RegisterVoice.py with Nuitka
+      - name: Compile RegisterVoice.py with Nuitka inside UV virtual environment
         run: |
           cd VoiceServer
-          uv run python -m nuitka --standalone --onefile RegisterVoice.py
+          uv run python -m nuitka --standalone RegisterVoice.py --include-data-dir=VoiceServer/_libs=libs
+
+      # Compile VoiceServer.py with Nuitka and include _libs
+      - name: Compile VoiceServer.py with Nuitka inside UV virtual environment
+        run: |
+          cd VoiceServer
+          uv run python -m nuitka --standalone VoiceServer.py --include-data-dir=VoiceServer/_libs=libs
+
 
       - name: Build Installer with Inno Setup
         run: |
