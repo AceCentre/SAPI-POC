@@ -4,7 +4,7 @@ project(pysapitts)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-find_package(Python3 REQUIRED COMPONENTS Development.Embed)
+find_package(Python3 3.11 REQUIRED COMPONENTS Development.Embed)
 
 include(FetchContent)
 
