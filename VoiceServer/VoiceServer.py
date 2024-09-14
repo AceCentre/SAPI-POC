@@ -270,6 +270,7 @@ class PipeServerThread(QThread):
         # Stream the audio chunks to the client
         for audio_chunk in tts_engine.speak_streamed(text):
             win32file.WriteFile(pipe, audio_chunk)
+  
     
     def register_voice(self, voice_iso_code):
         try:
@@ -294,12 +295,33 @@ class PipeServerThread(QThread):
             ]
             self.run_command(register_command)
 
+            # Add InprocServer32 to both 64-bit and 32-bit registries
+            self.add_inprocserver32_to_registry(f"PYTTS-{engine_name}", engine_dll)
+
             logging.info(f"Successfully registered voice: {voice_iso_code}")
             return True
 
         except Exception as e:
             logging.error(f"Failed to register voice {voice_iso_code}: {e}")
             return False
+
+
+    def add_inprocserver32_to_registry(self, token_name, engine_dll):
+        # Add the InprocServer32 key to both 64-bit and 32-bit registry paths
+
+        registry_paths = [
+            r"SOFTWARE\Microsoft\Speech\Voices\Tokens",
+            r"SOFTWARE\WOW6432Node\Microsoft\Speech\Voices\Tokens"
+        ]
+
+        for registry_path in registry_paths:
+            full_path = f"{registry_path}\\{token_name}\\InprocServer32"
+            try:
+                with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, full_path) as key:
+                    winreg.SetValueEx(key, None, 0, winreg.REG_SZ, engine_dll)
+                logging.info(f"Added InprocServer32 to {full_path}")
+            except Exception as e:
+                logging.error(f"Failed to add InprocServer32 to {full_path}: {e}")
 
  
     def is_engine_registered(self, dll_name):
