@@ -57,17 +57,19 @@ jobs:
           cd VoiceServer
           uv sync   
 
-      - name: Compile RegisterVoice.py with Nuitka inside UV virtual environment
+      - name: Compile RegisterVoice.py with PyInstaller inside UV virtual environment
         run: |
           cd VoiceServer
-          uv run python -m nuitka --standalone RegisterVoice.py --include-data-dir=_libs=libs --windows-icon-from-ico=icon.ico --disable-console
+          uv run python -c "import site, os; print(os.path.join(site.getsitepackages()[0]))" > site_packages_path.txt
+          set /p site_packages=<site_packages_path.txt
+          uv run python -m PyInstaller RegisterVoice.py --noupx --onedir --noconsole --name "RegisterVoice" -i .\icon.ico --clean --add-binary "%site_packages%/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
 
-      # Compile VoiceServer.py with Nuitka and include _libs
-      - name: Compile VoiceServer.py with Nuitka inside UV virtual environment
+      # Compile VoiceServer.py with PyInstaller and include _libs
+      - name: Compile VoiceServer.py with PyInstaller inside UV virtual environment
         run: |
           cd VoiceServer
-          uv run python -m nuitka --standalone VoiceServer.py --include-data-dir=_libs=libs --windows-icon-from-ico=icon.ico --windows-uac-admin --disable-console
-
+          set /p site_packages=<site_packages_path.txt
+          uv run python -m PyInstaller VoiceServer.py --noupx --onedir --noconsole --name "VoiceServer" -i .\icon.ico --clean --add-binary "%site_packages%/azure/cognitiveservices/speech/Microsoft.CognitiveServices.Speech.core.dll;." --collect-all comtypes -y
 
       - name: Build Installer with Inno Setup
         run: |
