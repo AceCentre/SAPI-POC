@@ -100,11 +100,19 @@ jobs:
               Write-Host "One or more directories are missing. Compression aborted."
           }
 
+          # Add this after the compression to verify the zip file exists
+          if (Test-Path "VoiceServer_Uninstalled.zip") {
+              Write-Host "Zip file created successfully."
+              dir VoiceServer_Uninstalled.zip
+          } else {
+              Write-Host "Zip file creation failed."
+          }
+
       - name: Archive the zip of uninstalled version
         uses: actions/upload-artifact@v4
         with:
           name: uninstalled-version
-          path: VoiceServer/  VoiceServer_Uninstalled.zip
+          path: VoiceServer/VoiceServer_Uninstalled.zip
           
 
       # Archive the compiled executables
