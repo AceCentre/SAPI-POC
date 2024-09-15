@@ -127,8 +127,8 @@ def init_engines(engines):
 
     # Sherpa-ONNX TTS
     if 'SherpaOnnx' in engines:
-        model_path = engines['SherpaOnnx']['model_path']
-        tokens_path = engines['SherpaOnnx']['tokens_path']
+        model_path = engines['SherpaOnnx']['model_path'] or None
+        tokens_path = engines['SherpaOnnx']['tokens_path'] or None
         try:
             sherpa_client = SherpaOnnxClient(model_path=model_path, tokens_path=tokens_path)
             sherpa_tts = SherpaOnnxTTS(sherpa_client)
@@ -308,15 +308,15 @@ class PipeServerThread(QThread):
             logging.error(f"Error sending large data: {e}")
     
     def speak_text_streamed(self, pipe, tts_engine, text, voice):
-        """Speaks the text using the TTS engine, streaming the output back."""
-        # Set the voice on the engine
+        """Speaks the text using the TTS engine, streaming the PCM bytes back."""
+        # Set the voice on the engine (if required)
         if hasattr(tts_engine, "set_voice"):
             tts_engine.set_voice(voice)
 
-        # Stream the audio chunks to the client
-        for audio_chunk in tts_engine.speak_streamed(text):
-            win32file.WriteFile(pipe, audio_chunk)
-  
+        # Use synth_to_bytestream to get the raw PCM audio bytes
+        for audio_chunk in tts_engine.synth_to_bytes(text):
+            win32file.WriteFile(pipe, audio_chunk)  # Send PCM 16-bit audio data to SAPI or the client
+            
     def register_sapi_engine(self, engine_dll):
         """Register the SAPI engine DLL for both 32-bit and 64-bit registry paths."""
         try:
@@ -349,6 +349,15 @@ class PipeServerThread(QThread):
             self.load_lcid_map()
 
             if voice_details:
+                try:
+                    # Try setting the voice on the engine
+                    # This is particularly important for sherpaonnx as it needs to download and load the model
+                    # It could take some time
+                   tts_engine.set_voice(voice)
+                except Exception as e:
+                    logging.error(f"Failed to set voice {voice_id} for engine {engine_name}: {e}")
+                    return False
+                
                 language_code = voice_details.get('language_codes', ['409'])[0]  # Get the first language code
                 gender = voice_details.get('gender', 'Neutral').capitalize()
                 
