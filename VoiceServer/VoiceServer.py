@@ -240,6 +240,11 @@ class PipeServerThread(QThread):
                         success = self.register_voice(engine_voice_combo)  # Pass the new engine-voice_id combo
                         response = {"status": "success" if success else "failure"}
                         win32file.WriteFile(pipe, json.dumps(response).encode())
+                    elif request.get('action') == 'unregister_voice':
+                        voice_iso_code = request.get('voice_iso_code')
+                        success = self.unregister_voice(voice_iso_code)
+                        response = {"status": "success" if success else "failure"}
+                        win32file.WriteFile(pipe, json.dumps(response).encode())
                     elif request.get('action') == 'speak':
                         engine_name = request.get('engine')
                         voice_name = request.get('voice')
@@ -375,6 +380,31 @@ class PipeServerThread(QThread):
                 return False
         except Exception as e:
             logging.error(f"Failed to register voice {voice_id}: {e}")
+            return False
+    
+    def unregister_voice(self, voice_id):
+        """Unregister the voice from both 32-bit and 64-bit registry paths."""
+        try:
+            engine_name, voice_name = voice_id.split("-", 1)
+            logging.info(f"Unregistering voice: {voice_name} for engine: {engine_name}")
+            
+            token = f"PYTTS-{engine_name}"
+            key_paths = [
+                f"SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\{token}",  # 64-bit
+                f"SOFTWARE\\WOW6432Node\\Microsoft\\Speech\\Voices\\Tokens\\{token}"  # 32-bit
+            ]
+            
+            for key_path in key_paths:
+                try:
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_ALL_ACCESS) as key:
+                        winreg.DeleteKey(key, "")  # Deleting the default key or entire key
+                    logging.info(f"Successfully unregistered voice {voice_name} at {key_path}")
+                except FileNotFoundError:
+                    logging.warning(f"Voice {voice_name} not found in {key_path}")
+            
+            return True
+        except Exception as e:
+            logging.error(f"Failed to unregister voice {voice_name}: {e}")
             return False
  
     def is_engine_registered(self, key_path):
