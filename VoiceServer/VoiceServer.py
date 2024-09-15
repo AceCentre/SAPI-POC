@@ -140,6 +140,27 @@ def init_engines(engines):
     return initialized_engines
 
 
+def convert_to_lcid_format(language_code, lcid_map):
+    """
+    Converts a TTS language code (e.g., 'af-ZA') to LCID format (e.g., 'af_ZA') and looks up the LCID.
+    
+    Args:
+        language_code (str): Language code in the format 'af-ZA'.
+        lcid_map (dict): Dictionary mapping LCID codes to locale names (e.g., 'af_ZA').
+    
+    Returns:
+        str: The LCID value if found, otherwise 'Unknown LCID'.
+    """
+    # Convert 'af-ZA' to 'af_ZA'
+    formatted_code = language_code.replace('-', '_')
+    
+    # Search the LCID map for the corresponding LCID
+    for lcid, locale_name in lcid_map.items():
+        if locale_name == formatted_code:
+            return lcid  # Return the LCID if found
+    
+    return 'Unknown LCID'  # If not found
+
 class PipeServerThread(QThread):
     message_received = Signal(str)
     voices = None
@@ -148,7 +169,21 @@ class PipeServerThread(QThread):
     def __init__(self):
         super().__init__()
         self.engines = None
-        self.libs_directory = os.path.join(os.getcwd(), '_libs') 
+        self.libs_directory = os.path.join(os.getcwd(), '_libs')
+        self.lcid_map = None  
+
+    def load_lcid_map(self):
+        """Load LCID map if not already loaded."""
+        if self.lcid_map is None:
+            lcid_map_path = os.path.join(self.libs_directory, 'lcid_map.json')
+            try:
+                with open(lcid_map_path, 'r') as f:
+                    self.lcid_map = json.load(f)
+                logging.info(f"Loaded LCID map from {lcid_map_path}")
+            except Exception as e:
+                logging.error(f"Failed to load LCID map: {e}")
+                self.lcid_map = {}  # Default to an empty dictionary in case of failure
+
 
     def init_engines(self, config_path):
         """Initialize engines based on the configuration file."""
@@ -196,13 +231,13 @@ class PipeServerThread(QThread):
                         if engine_name in self.engines:
                             self.fetch_voices(engine_name, pipe)
                     elif request.get('action') == 'set_voice':
-                        voice_iso_code = request.get('voice_iso_code')
+                        engine_voice_combo = request.get('engine_voice_combo')  # Now using engine-voice_id combo
                         # Check and register the SAPI engine if not already registered
                         engine_dll = os.path.join(self.libs_directory, 'pysapittsengine.dll')
                         if not self.is_engine_registered(r"SOFTWARE\Microsoft\Speech\Voices\Tokens\PYTTS-Microsoft\InprocServer32"):
                             self.register_sapi_engine(engine_dll)
                         # Register the voice
-                        success = self.register_voice(voice_iso_code) 
+                        success = self.register_voice(engine_voice_combo)  # Pass the new engine-voice_id combo
                         response = {"status": "success" if success else "failure"}
                         win32file.WriteFile(pipe, json.dumps(response).encode())
                     elif request.get('action') == 'speak':
@@ -295,34 +330,52 @@ class PipeServerThread(QThread):
             logging.error(f"Failed to register SAPI engine: {e}")
             return False
 
-    def register_voice(self, voice_id):
+    def register_voice(self, engine_voice_combo):
         """Register the voice in both 32-bit and 64-bit registry paths."""
         try:
-            engine_name, voice_name = voice_id.split("-", 1)
-            logging.info(f"Registering voice: {voice_name} for engine: {engine_name}")
-            default_value = f"{engine_name} - {voice_name} (409)" #We need to get languages - no idea how Windows does this - but we can get it from tts.get_voices()
-
-            token = f"PYTTS-{engine_name}"
-            key_paths = [
-                f"SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\{token}",  # 64-bit
-                f"SOFTWARE\\WOW6432Node\\Microsoft\\Speech\\Voices\\Tokens\\{token}"  # 32-bit
-            ]
+            # Split the combined string into engine_name and voice_id
+            engine_name, voice_id = engine_voice_combo.split("-", 1)
+            logging.info(f"Registering voice: {voice_id} for engine: {engine_name}")
             
-            for key_path in key_paths:
-                with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
-                    winreg.SetValueEx(key, "", 0, winreg.REG_SZ, default_value)
-                    winreg.SetValueEx(key, "Name", 0, winreg.REG_SZ, voice_name)
-                    winreg.SetValueEx(key, "Vendor", 0, winreg.REG_SZ, engine_name)
-                    winreg.SetValueEx(key, "Language", 0, winreg.REG_SZ, "409")  # to-do language 
-                    winreg.SetValueEx(key, "Gender", 0, winreg.REG_SZ, "Female")  # to-do gender
-                    winreg.SetValueEx(key, "Age", 0, winreg.REG_SZ, "Adult")
-                    winreg.SetValueEx(key, "Path", 0, winreg.REG_SZ, self.libs_directory)
-                    winreg.SetValueEx(key, "Module", 0, winreg.REG_SZ, "voices")
-                    winreg.SetValueEx(key, "Class", 0, winreg.REG_SZ, f"{engine_name}Voice")
-                logging.info(f"Successfully registered voice {voice_name} at {key_path}")
-            return True
+            # Check if the engine is available and voice is valid
+            tts_engine = self.engines[engine_name]
+            voices = tts_engine.get_voices()
+            voice_details = next((voice for voice in voices if voice['id'] == voice_id), None)
+            self.load_lcid_map()
+
+            if voice_details:
+                language_code = voice_details.get('language_codes', ['409'])[0]  # Get the first language code
+                gender = voice_details.get('gender', 'Neutral').capitalize()
+                
+                # Convert the language code to an LCID using the provided map
+                lcid = convert_to_lcid_format(language_code, self.lcid_map) or '406'  # Default to English (United States)
+                default_value = f"{engine_name} - {voice_id} ({language_code})"  # Default value for the registry
+
+                token = f"PYTTS-{engine_name}"
+                key_paths = [
+                    f"SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\{token}",  # 64-bit
+                    f"SOFTWARE\\WOW6432Node\\Microsoft\\Speech\\Voices\\Tokens\\{token}"  # 32-bit
+                ]
+                
+                for key_path in key_paths:
+                    with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, default_value)
+                        winreg.SetValueEx(key, "Name", 0, winreg.REG_SZ, voice_id)
+                        winreg.SetValueEx(key, "Vendor", 0, winreg.REG_SZ, engine_name)
+                        winreg.SetValueEx(key, "Language", 0, winreg.REG_SZ, lcid)
+                        winreg.SetValueEx(key, "Gender", 0, winreg.REG_SZ, gender)
+                        winreg.SetValueEx(key, "Age", 0, winreg.REG_SZ, "Adult")
+                        winreg.SetValueEx(key, "Path", 0, winreg.REG_SZ, self.libs_directory)
+                        winreg.SetValueEx(key, "Module", 0, winreg.REG_SZ, "voices")
+                        winreg.SetValueEx(key, "Class", 0, winreg.REG_SZ, f"{engine_name}Voice")
+                    logging.info(f"Successfully registered voice {voice_id} at {key_path}")
+                return True
+            else:
+                logging.error(f"Voice {voice_id} not found in {engine_name}")
+                return False
         except Exception as e:
-            logging.error(f"Failed to register voice {voice_name}: {e}")
+            logging.error(f"Failed to register voice {voice_id}: {e}")
+            return False
  
     def is_engine_registered(self, key_path):
         """Check if the engine DLL is already registered."""

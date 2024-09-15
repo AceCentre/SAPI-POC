@@ -103,21 +103,23 @@ class VoiceSelectionGUI(QWidget):
             QMessageBox.warning(self, "Warning", "Please select at least one voice to register.")
             return
 
-        engine_name = self.engine_combo.currentText()  # Extract the engine name from the combo box
-        selected_voices = [f"{engine_name}-{item.data(Qt.UserRole)['name']}" for item in selected_items]
+        # Send registration request to the pipe service using the 'id' from voice data
+        for item in selected_items:
+            voice_data = item.data(Qt.UserRole)
+            engine_name = self.engine_combo.currentText()  # Extract the engine name
+            voice_id = voice_data['id']  # Use the unique 'id' field from the voice data
+            engine_voice_combo = f"{engine_name}-{voice_id}"  # Combine engine and voice_id
 
-        # Send registration request to the pipe service
-        for voice_iso_code in selected_voices:
             request = {
                 "action": "set_voice",
-                "voice_iso_code": voice_iso_code  # Now includes both engine and voice
+                "engine_voice_combo": engine_voice_combo  # Send the combined engine and voice_id
             }
             response = send_pipe_request(request)
             if response and response.get("status") == "success":
-                logging.info(f"Successfully registered voice: {voice_iso_code}")
+                logging.info(f"Successfully registered voice: {engine_voice_combo}")
             else:
-                logging.error(f"Failed to register voice: {voice_iso_code}")
-                QMessageBox.critical(self, "Error", f"Failed to register voice: {voice_iso_code}")
+                logging.error(f"Failed to register voice: {engine_voice_combo}")
+                QMessageBox.critical(self, "Error", f"Failed to register voice: {engine_voice_combo}")
 
         QMessageBox.information(self, "Success", "Selected voices have been registered.")
 
