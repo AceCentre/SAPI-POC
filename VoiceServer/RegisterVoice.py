@@ -1,29 +1,45 @@
 import sys
 import json
 import logging
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QComboBox, QListWidget, QPushButton, QListWidgetItem, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QComboBox,
+    QListWidget,
+    QPushButton,
+    QListWidgetItem,
+    QMessageBox,
+)
 from PySide6.QtCore import Qt
 import win32file
 import win32pipe
 
+
 # Pipe interaction utility functions
 def send_pipe_request(request):
     try:
-        pipe_name = r'\\.\pipe\VoiceEngineServer'
+        pipe_name = r"\\.\pipe\VoiceEngineServer"
         pipe = win32file.CreateFile(
             pipe_name,
             win32file.GENERIC_READ | win32file.GENERIC_WRITE,
-            0, None, win32file.OPEN_EXISTING, 0, None
+            0,
+            None,
+            win32file.OPEN_EXISTING,
+            0,
+            None,
         )
         request_data = json.dumps(request).encode()
         win32file.WriteFile(pipe, request_data)
-        
+
         result, response = win32file.ReadFile(pipe, 64 * 1024)
         win32file.CloseHandle(pipe)
         return json.loads(response.decode())
     except Exception as e:
         logging.error(f"Error communicating with pipe: {e}")
         return None
+
 
 # Main GUI Window
 class VoiceSelectionGUI(QWidget):
@@ -70,12 +86,14 @@ class VoiceSelectionGUI(QWidget):
         request = {"action": "list_engines"}
         response = send_pipe_request(request)
 
-        if response and 'engines' in response:
-            self.engines = response['engines']
+        if response and "engines" in response:
+            self.engines = response["engines"]
             self.engine_combo.clear()
             self.engine_combo.addItems(self.engines)
         else:
-            QMessageBox.critical(self, "Error", "Failed to load engines from pipe service.")
+            QMessageBox.critical(
+                self, "Error", "Failed to load engines from pipe service."
+            )
 
     def load_voices(self):
         """Loads the voices for the selected engine."""
@@ -86,45 +104,56 @@ class VoiceSelectionGUI(QWidget):
         request = {"action": "list_voices", "engine": engine_name}
         response = send_pipe_request(request)
 
-        if response and 'voices' in response:
-            self.voices = response['voices']
+        if response and "voices" in response:
+            self.voices = response["voices"]
             self.voice_list.clear()
             for voice in self.voices:
-                item = QListWidgetItem(voice['name'])
+                item = QListWidgetItem(voice["name"])
                 item.setData(Qt.UserRole, voice)
                 self.voice_list.addItem(item)
         else:
-            QMessageBox.critical(self, "Error", f"Failed to load voices for engine {engine_name}.")
+            QMessageBox.critical(
+                self, "Error", f"Failed to load voices for engine {engine_name}."
+            )
 
     def register_selected_voices(self):
         """Registers the selected voices."""
         selected_items = self.voice_list.selectedItems()
         if not selected_items:
-            QMessageBox.warning(self, "Warning", "Please select at least one voice to register.")
+            QMessageBox.warning(
+                self, "Warning", "Please select at least one voice to register."
+            )
             return
 
         # Send registration request to the pipe service using the 'id' from voice data
         for item in selected_items:
             voice_data = item.data(Qt.UserRole)
             engine_name = self.engine_combo.currentText()  # Extract the engine name
-            voice_id = voice_data['id']  # Use the unique 'id' field from the voice data
-            engine_voice_combo = f"{engine_name}-{voice_id}"  # Combine engine and voice_id
+            voice_id = voice_data["id"]  # Use the unique 'id' field from the voice data
+            engine_voice_combo = (
+                f"{engine_name}-{voice_id}"  # Combine engine and voice_id
+            )
 
             request = {
                 "action": "set_voice",
-                "engine_voice_combo": engine_voice_combo  # Send the combined engine and voice_id
+                "engine_voice_combo": engine_voice_combo,  # Send the combined engine and voice_id
             }
             response = send_pipe_request(request)
             if response and response.get("status") == "success":
                 logging.info(f"Successfully registered voice: {engine_voice_combo}")
             else:
                 logging.error(f"Failed to register voice: {engine_voice_combo}")
-                QMessageBox.critical(self, "Error", f"Failed to register voice: {engine_voice_combo}")
+                QMessageBox.critical(
+                    self, "Error", f"Failed to register voice: {engine_voice_combo}"
+                )
 
-        QMessageBox.information(self, "Success", "Selected voices have been registered.")
+        QMessageBox.information(
+            self, "Success", "Selected voices have been registered."
+        )
+
 
 # Run the GUI
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     gui = VoiceSelectionGUI()
     gui.show()
