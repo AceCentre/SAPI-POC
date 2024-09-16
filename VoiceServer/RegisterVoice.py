@@ -134,9 +134,10 @@ class VoiceSelectionGUI(QWidget):
                 f"{engine_name}-{voice_id}"  # Combine engine and voice_id
             )
 
+            # Send the combined engine and voice_id to the pipe service
             request = {
                 "action": "set_voice",
-                "engine_voice_combo": engine_voice_combo,  # Send the combined engine and voice_id
+                "engine_voice_combo": engine_voice_combo,
             }
             response = send_pipe_request(request)
             if response and response.get("status") == "success":

@@ -106,7 +106,10 @@ def load_config(config_path="settings.cfg"):
 
 
 def init_engines(engines):
-    """Initialize TTS clients and TTS classes for the engines specified in the configuration."""
+    """
+    Initialize TTS clients and TTS classes for the engines
+    specified in the configuration.
+    """
     initialized_engines = {}
 
     # Microsoft TTS
@@ -175,7 +178,8 @@ def init_engines(engines):
 
 def convert_to_lcid_format(language_code, lcid_map):
     """
-    Converts a TTS language code (e.g., 'af-ZA') to LCID format (e.g., 'af_ZA') and looks up the LCID.
+    Converts a TTS language code (e.g., 'af-ZA') to LCID format (e.g., 'af_ZA')
+        and looks up the LCID.
 
     Args:
         language_code (str): Language code in the format 'af-ZA'.
@@ -310,7 +314,10 @@ class PipeServerThread(QThread):
                 logging.info("Pipe closed. Reopening for next connection.")
 
     def fetch_voices(self, engine_name, pipe):
-        """Fetch voices for the selected engine and ensure the response is fully transmitted."""
+        """
+        Fetch voices for the selected engine and ensure the
+        response is fully transmitted.
+        """
         try:
             tts_engine = self.engines[engine_name]
             voices = tts_engine.get_voices()
@@ -372,7 +379,10 @@ class PipeServerThread(QThread):
             )  # Send PCM 16-bit audio data to SAPI or the client
 
     def register_sapi_engine(self, engine_dll):
-        """Register the SAPI engine DLL for both 32-bit and 64-bit registry paths."""
+        """
+        Register the SAPI engine DLL for both 32-bit
+        and 64-bit registry paths.
+        """
         try:
             key_paths = [
                 r"SOFTWARE\Microsoft\Speech\Voices\Tokens\PYTTS-Microsoft\InprocServer32",  # 64-bit
@@ -407,7 +417,8 @@ class PipeServerThread(QThread):
             if voice_details:
                 try:
                     # Try setting the voice on the engine
-                    # This is particularly important for sherpaonnx as it needs to download and load the model
+                    # This is particularly important for sherpaonnx
+                    # as it needs to download and load the model
                     # It could take some time
                     tts_engine.set_voice(voice_id)
                 except Exception as e:
@@ -425,7 +436,7 @@ class PipeServerThread(QThread):
                 lcid = (
                     convert_to_lcid_format(language_code, self.lcid_map) or "406"
                 )  # Default to English (United States)
-                default_value = f"{engine_name} - {voice_id} ({language_code})"  # Default value for the registry
+                default_value = f"{engine_name} - {voice_id} ({language_code})"
 
                 token = f"PYTTS-{engine_name}"
                 key_paths = [
