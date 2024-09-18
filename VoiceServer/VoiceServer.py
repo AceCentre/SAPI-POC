@@ -126,7 +126,7 @@ def init_engines(engines):
     if "Google" in engines:
         google_cred_path = engines["Google"]["cred_json"]
         try:
-            google_client = GoogleClient(credentials=(google_cred_path,))
+            google_client = GoogleClient(credentials=(google_cred_path))
             google_tts = GoogleTTS(google_client)
             google_tts.get_voices()  # Validate by fetching voices
             initialized_engines["Google"] = google_tts
