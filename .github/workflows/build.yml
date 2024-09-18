@@ -22,37 +22,37 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Install vcpkg (if not already installed)
-      - name: Set up vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git
-          ./vcpkg/bootstrap-vcpkg.bat
+      # # Install vcpkg (if not already installed)
+      # - name: Set up vcpkg
+      #   run: |
+      #     git clone https://github.com/microsoft/vcpkg.git
+      #     ./vcpkg/bootstrap-vcpkg.bat
           
-      # Install JsonCPP with vcpkg
-      - name: Install JsonCPP via vcpkg
-        run: |
-          ./vcpkg/vcpkg install jsoncpp
-          ./vcpkg/vcpkg integrate install  # To set up vcpkg to work with CMake
+      # # Install JsonCPP with vcpkg
+      # - name: Install JsonCPP via vcpkg
+      #   run: |
+      #     ./vcpkg/vcpkg install jsoncpp
+      #     ./vcpkg/vcpkg integrate install  # To set up vcpkg to work with CMake
 
-      # Build the DLL using CMake
-      - name: Build DLL using CMake
-        run: |
-          cd engine
-          mkdir build
-          cd build
-          cmake -DCMAKE_TOOLCHAIN_FILE=../../vcpkg/scripts/buildsystems/vcpkg.cmake ..
-          cmake --build . --config Debug
-          cmake --build . --config Release
+      # # Build the DLL using CMake
+      # - name: Build DLL using CMake
+      #   run: |
+      #     cd engine
+      #     mkdir build
+      #     cd build
+      #     cmake -DCMAKE_TOOLCHAIN_FILE=../../vcpkg/scripts/buildsystems/vcpkg.cmake ..
+      #     cmake --build . --config Debug
+      #     cmake --build . --config Release
 
-      - name: Print contents of build/bin directory
-        run: |
-            dir engine/build
-            dir engine/build/Release
+      # - name: Print contents of build/bin directory
+      #   run: |
+      #       dir engine/build
+      #       dir engine/build/Release
             
-      # Move the DLL to VoiceServer directory
-      - name: Move DLL and other bits to VoiceServer directory
-        run: |
-          Move-Item -Force engine/build/Release/* VoiceServer/_libs/
+      # # Move the DLL to VoiceServer directory
+      # - name: Move DLL and other bits to VoiceServer directory
+      #   run: |
+      #     Move-Item -Force engine/build/Release/* VoiceServer/_libs/
 
       - name: Set up UV
         uses: yezz123/setup-uv@v4
