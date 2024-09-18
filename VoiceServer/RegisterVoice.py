@@ -134,23 +134,22 @@ class VoiceSelectionGUI(QWidget):
                 f"{engine_name}-{voice_id}"  # Combine engine and voice_id
             )
 
-            # Send the combined engine and voice_id to the pipe service
             request = {
                 "action": "set_voice",
-                "engine_voice_combo": engine_voice_combo,
+                "engine_voice_combo": engine_voice_combo,  # Send the combined engine and voice_id
             }
             response = send_pipe_request(request)
             if response and response.get("status") == "success":
                 logging.info(f"Successfully registered voice: {engine_voice_combo}")
+                QMessageBox.information(
+                    self, "Success", "Selected voices have been registered."
+                )
+
             else:
                 logging.error(f"Failed to register voice: {engine_voice_combo}")
                 QMessageBox.critical(
                     self, "Error", f"Failed to register voice: {engine_voice_combo}"
                 )
-
-        QMessageBox.information(
-            self, "Success", "Selected voices have been registered."
-        )
 
 
 # Run the GUI

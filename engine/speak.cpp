@@ -86,7 +86,7 @@ static void speak(const wchar_t* text, int num_calls) {
         throw std::runtime_error("GetVoice failed");
     }*/
 
-    if (!set_voice(voice, L"Azure Neural")) {
+    if (!set_voice(voice, L"Microsoft David Desktop - English (United States)")) {
         throw std::runtime_error("Voice not found");
     }
 

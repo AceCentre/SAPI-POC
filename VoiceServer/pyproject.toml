@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "configparser>=7.1.0",
-    "py3-tts-wrapper[google,microsoft,polly,sherpaonnx,watson]>=0.9.11",
+    "py3-tts-wrapper[google,microsoft,polly,sherpaonnx,watson]>=0.9.12",
     "pyinstaller>=6.10.0",
     "pyside6>=6.7.2",
     "python-dotenv>=1.0.1",
