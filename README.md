@@ -1,14 +1,13 @@
 # Building
 
-You need cmake. So if you have chocolatey, you can install it with the following command:
-
-```
-choco install cmake
-```
-
-or you can download it from [here](https://cmake.org/download/).
-
+Use Visual Studio  to build the project. The project is a CMake project, so you can use CMake to generate the Visual Studio solution file
 So the build process is as follows:
+
+1. Download opensource jsoncpp.
+2. Build jsoncpp.lib and jsoncpp.dll
+3. Link jsoncpp.lib and dll to pysapittsengine project.
+4. Then build the pysapittsengine.dll
+
 
 ```
 cd engine
