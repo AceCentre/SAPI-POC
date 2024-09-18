@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import win32file
 import win32pipe
+import zlib
 
 
 # Pipe interaction utility functions
@@ -30,12 +31,23 @@ def send_pipe_request(request):
             0,
             None,
         )
-        request_data = json.dumps(request).encode()
-        win32file.WriteFile(pipe, request_data)
 
-        result, response = win32file.ReadFile(pipe, 64 * 1024)
+        # Compress the request data using zlib before sending
+        request_data = json.dumps(request).encode()
+        compressed_request_data = zlib.compress(request_data)
+
+        # Send compressed data over the pipe
+        win32file.WriteFile(pipe, compressed_request_data)
+
+        # Read compressed response from pipe
+        result, compressed_response = win32file.ReadFile(pipe, 64 * 1024)
         win32file.CloseHandle(pipe)
-        return json.loads(response.decode())
+
+        # Decompress the response
+        response_data = zlib.decompress(compressed_response)
+
+        return json.loads(response_data.decode())
+
     except Exception as e:
         logging.error(f"Error communicating with pipe: {e}")
         return None
@@ -144,7 +156,6 @@ class VoiceSelectionGUI(QWidget):
                 QMessageBox.information(
                     self, "Success", "Selected voices have been registered."
                 )
-
             else:
                 logging.error(f"Failed to register voice: {engine_voice_combo}")
                 QMessageBox.critical(

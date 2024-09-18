@@ -8,6 +8,7 @@ import win32pipe
 import win32security
 import ntsecuritycon as con
 import winreg
+import zlib
 
 from PySide6.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu
 from PySide6.QtGui import QIcon, QAction
@@ -256,8 +257,10 @@ class PipeServerThread(QThread):
                 win32pipe.ConnectNamedPipe(pipe, None)
                 logging.info("Client connected.")
 
-                result, data = win32file.ReadFile(pipe, 64 * 1024)
+                result, compressed_data = win32file.ReadFile(pipe, 64 * 1024)
                 if result == 0:
+                    # Decompress the incoming data
+                    data = zlib.decompress(compressed_data)
                     message = data.decode()
                     logging.info(f"Received data: {message[:50]}...")
                     request = json.loads(message)
@@ -340,20 +343,18 @@ class PipeServerThread(QThread):
             self.send_large_data(pipe, response_data)
 
     def send_large_data(self, pipe, data):
-        """Send large data in chunks over the pipe."""
+        """Send large data in compressed chunks over the pipe."""
         try:
-            chunk_size = 60 * 1024  # 60 KB per chunk
+            chunk_size = 120 * 1024  # 120 KB per chunk
 
-            # Convert data to a UTF-8 encoded JSON string
-            data = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            # Compress the JSON data
+            data = zlib.compress(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
             # Send the data in chunks
             for i in range(0, len(data), chunk_size):
                 chunk = data[i : i + chunk_size]
                 win32file.WriteFile(pipe, chunk)
 
-            # Optionally, send a termination signal or an empty chunk at the end
-            # to indicate the end of the transmission
             win32file.WriteFile(
                 pipe, b""
             )  # An empty write to signal the end of the transmission
