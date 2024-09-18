@@ -411,23 +411,21 @@ class PipeServerThread(QThread):
                     # Try setting the voice on the engine
                     # This is particularly important for sherpaonnx as it needs to download and load the model
                     # It could take some time
-                    tts_engine.set_voice(voice_id)
+                    language_locale = voice_details.get("language_codes", ["en-US"])[0]
+                    tts_engine.set_voice(voice_id, language_locale)
                 except Exception as e:
                     logging.error(
                         f"Failed to set voice {voice_id} for engine {engine_name}: {e}"
                     )
                     return False
 
-                language_code = voice_details.get("language_codes", ["409"])[
-                    0
-                ]  # Get the first language code
                 gender = voice_details.get("gender", "Neutral").capitalize()
 
                 # Convert the language code to an LCID using the provided map
                 lcid = (
-                    convert_to_lcid_format(language_code, self.lcid_map) or "406"
+                    convert_to_lcid_format(language_locale, self.lcid_map) or "406"
                 )  # Default to English (United States)
-                default_value = f"{engine_name} - {voice_id} ({language_code})"  # Default value for the registry
+                default_value = f"{engine_name} - {voice_id} ({language_locale})"  # Default value for the registry
 
                 token = f"PYTTS-{engine_name}"
                 key_paths = [
