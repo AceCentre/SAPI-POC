@@ -411,7 +411,7 @@ class PipeServerThread(QThread):
                     # Try setting the voice on the engine
                     # This is particularly important for sherpaonnx as it needs to download and load the model
                     # It could take some time
-                    tts_engine.set_voice(voice)
+                    tts_engine.set_voice(voice_id)
                 except Exception as e:
                     logging.error(
                         f"Failed to set voice {voice_id} for engine {engine_name}: {e}"
