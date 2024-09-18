@@ -211,7 +211,7 @@ class PipeServerThread(QThread):
     def load_lcid_map(self):
         """Load LCID map if not already loaded."""
         if self.lcid_map is None:
-            lcid_map_path = os.path.join(self.libs_directory, "lcid_map.json")
+            lcid_map_path = os.path.join(self.libs_directory, "lcid.json")
             try:
                 with open(lcid_map_path, "r") as f:
                     self.lcid_map = json.load(f)
