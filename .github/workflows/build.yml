@@ -31,7 +31,11 @@ jobs:
           vs-version: '2022'
 
       - name: Install vcpkg
-        uses: luke-williams/action-install-vcpkg@v1
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          .\vcpkg\bootstrap-vcpkg.bat
+          .\vcpkg\vcpkg integrate install
+          .\vcpkg\vcpkg integrate project
 
       - name: Build JSONCPP
         run: |
