@@ -16,6 +16,69 @@ from PySide6.QtCore import Qt
 import win32file
 import win32pipe
 import zlib
+import os
+
+
+def setup_logging():
+    if getattr(sys, "frozen", False):
+        log_dir = os.path.join(
+            os.path.expanduser("~"), "AppData", "Roaming", "VoiceEngineServer"
+        )
+    else:
+        log_dir = os.path.dirname(os.path.abspath(__file__))
+
+    print(f"Log directory: {log_dir}")
+
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+    log_file = os.path.join(log_dir, "register-voice.log")
+    print(f"Log file: {log_file}")
+    logging.basicConfig(
+        filename=log_file,
+        filemode="a",
+        format="%(asctime)s — %(name)s — %(levelname)s — %(funcName)s:%(lineno)d — %(message)s",
+        level=logging.DEBUG,
+    )
+
+    return log_file
+
+
+def decompress_response(compressed_response):
+    try:
+        # Log the length of the data to verify its integrity
+        logging.debug(f"Compressed data length: {len(compressed_response)}")
+        # Attempt decompression with the correct headers for both gzip and zlib
+        response_data = zlib.decompress(compressed_response, wbits=15 + 32)
+        logging.debug(f"Decompressed data length: {len(response_data)}")
+        return response_data
+    except zlib.error as e:
+        logging.error(f"Failed to decompress response: {e}")
+        # Optionally log a hex dump of the data for detailed inspection
+        logging.debug(
+            f"Compressed data content (first 100 bytes): {compressed_response[:100]}"
+        )
+        return None
+
+
+def receive_and_decompress(pipe):
+    compressed_response = b""
+    while True:
+        # Read chunks of data from the pipe
+        result, chunk = win32file.ReadFile(pipe, 64 * 1024)
+        compressed_response += chunk
+        # Break when no more data is expected (usually last chunk is less than 64 * 1024 bytes)
+        if len(chunk) < 64 * 1024:
+            break
+
+    # Attempt to decompress the complete received data
+    response_data = decompress_response(compressed_response)
+    if response_data:
+        logging.info("Decompressed successfully.")
+        # Process the decompressed response as needed
+        return response_data
+    else:
+        logging.error("Decompression failed, no response data available.")
+        return None
 
 
 # Pipe interaction utility functions
@@ -40,12 +103,18 @@ def send_pipe_request(request):
         win32file.WriteFile(pipe, compressed_request_data)
 
         # Read compressed response from pipe
-        result, compressed_response = win32file.ReadFile(pipe, 64 * 1024)
-        win32file.CloseHandle(pipe)
+        response_data = receive_and_decompress(pipe)
 
-        # Decompress the response
-        response_data = zlib.decompress(compressed_response)
+        if response_data is None:
+            logging.error("Decompression failed, no response data available.")
+            return
 
+        # Process the decompressed response
+        response_text = response_data.decode("utf-8")
+        logging.debug(f"Response text: {response_text}")
+
+        response_text = response_data.decode("utf-8")
+        logging.debug(f"Response text: {response_text}")
         return json.loads(response_data.decode())
 
     except Exception as e:
@@ -165,6 +234,7 @@ class VoiceSelectionGUI(QWidget):
 
 # Run the GUI
 if __name__ == "__main__":
+    logfile = setup_logging()
     app = QApplication(sys.argv)
     gui = VoiceSelectionGUI()
     gui.show()

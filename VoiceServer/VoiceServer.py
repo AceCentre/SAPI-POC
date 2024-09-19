@@ -42,7 +42,7 @@ def setup_logging():
 
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
-    log_file = os.path.join(log_dir, "app.log")
+    log_file = os.path.join(log_dir, "voice-server.log")
     print(f"Log file: {log_file}")
     logging.basicConfig(
         filename=log_file,
@@ -261,6 +261,7 @@ class PipeServerThread(QThread):
                 if result == 0:
                     # Decompress the incoming data
                     data = zlib.decompress(compressed_data)
+                    logging.info(f"Received data: {data[:50]}...")
                     message = data.decode()
                     logging.info(f"Received data: {message[:50]}...")
                     request = json.loads(message)
@@ -268,7 +269,9 @@ class PipeServerThread(QThread):
                     # Handle different requests
                     if request.get("action") == "list_engines":
                         response = {"engines": self.available_engines}
-                        win32file.WriteFile(pipe, json.dumps(response).encode())
+                        win32file.WriteFile(
+                            pipe, zlib.compress(json.dumps(response).encode())
+                        )
                     elif request.get("action") == "list_voices":
                         engine_name = request.get("engine")
                         if engine_name in self.engines:
@@ -290,12 +293,16 @@ class PipeServerThread(QThread):
                             engine_voice_combo
                         )  # Pass the new engine-voice_id combo
                         response = {"status": "success" if success else "failure"}
-                        win32file.WriteFile(pipe, json.dumps(response).encode())
+                        win32file.WriteFile(
+                            pipe, zlib.compress(json.dumps(response).encode())
+                        )
                     elif request.get("action") == "unregister_voice":
                         voice_iso_code = request.get("voice_iso_code")
                         success = self.unregister_voice(voice_iso_code)
                         response = {"status": "success" if success else "failure"}
-                        win32file.WriteFile(pipe, json.dumps(response).encode())
+                        win32file.WriteFile(
+                            pipe, zlib.compress(json.dumps(response).encode())
+                        )
                     elif request.get("action") == "speak":
                         engine_name = request.get("engine")
                         voice_name = request.get("voice")
@@ -348,7 +355,13 @@ class PipeServerThread(QThread):
             chunk_size = 120 * 1024  # 120 KB per chunk
 
             # Compress the JSON data
-            data = zlib.compress(json.dumps(data, ensure_ascii=False).encode("utf-8"))
+            try:
+                data = zlib.compress(
+                    json.dumps(data, ensure_ascii=False).encode("utf-8")
+                )
+            except Exception as e:
+                logging.error(f"Error compressing data: {e}")
+                return
 
             # Send the data in chunks
             for i in range(0, len(data), chunk_size):
