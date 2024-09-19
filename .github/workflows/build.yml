@@ -31,6 +31,8 @@ jobs:
           .\vcpkg\bootstrap-vcpkg.bat
           .\vcpkg\vcpkg integrate install
           .\vcpkg\vcpkg integrate project
+          echo "VCPKG_ROOT=$(pwd)/vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
 
       - name: Build JSONCPP
         run: |
@@ -76,7 +78,13 @@ jobs:
           JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
           JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
           JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
-          
+
+      - name: Copy JSONCPP files to the engine build directory
+        run: |
+          Copy-Item -Path "$env:JSONCPP_INCLUDE_DIR\*" -Destination "D:/a/SAPI-POC/SAPI-POC/engine/include" -Recurse
+          Copy-Item -Path "$env:JSONCPP_LIB_DIR\*" -Destination "D:/a/SAPI-POC/SAPI-POC/engine/lib" -Recurse
+        shell: pwsh
+
       - name: Build pysapittsengine
         run: |
           cd engine
