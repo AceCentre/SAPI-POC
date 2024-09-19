@@ -195,11 +195,7 @@ class VoiceSelectionGUI(QWidget):
 
         if response and "voices" in response:
             self.voices = response["voices"]
-            self.voice_list.clear()
-            for voice in self.voices:
-                item = QListWidgetItem(voice["name"])
-                item.setData(Qt.UserRole, voice)
-                self.voice_list.addItem(item)
+            self.update_voice_list(self.voices)
         else:
             QMessageBox.critical(
                 self, "Error", f"Failed to load voices for engine {engine_name}."
