@@ -46,15 +46,22 @@ jobs:
           echo "JSONCPP_INCLUDE_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/include" >> $GITHUB_ENV
           echo "JSONCPP_LIB_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/lib/Release" >> $GITHUB_ENV
           echo "JSONCPP_DLL_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/bin/Release" >> $GITHUB_ENV
+        shell: pwsh
 
-      - name: Check Paths
+      - name: Verify Environment Variables
         run: |
           echo "Include Dir: $env:JSONCPP_INCLUDE_DIR"
           echo "Lib Dir: $env:JSONCPP_LIB_DIR"
           echo "DLL Dir: $env:JSONCPP_DLL_DIR"
+          env
+        shell: pwsh
 
       - name: Verify JSONCPP Build Output
         shell: pwsh
+        env:
+          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
+          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
+          JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
         run: |
           dir $env:JSONCPP_DLL_DIR
 
