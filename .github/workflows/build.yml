@@ -40,16 +40,16 @@ jobs:
           cd build
           cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
-
-      - name: Verify JSONCPP Build Output
-        run: |
-          dir ${{ env.JSONCPP_DLL_DIR }}
           
       - name: Set up JSONCPP paths
         run: |
           echo "JSONCPP_INCLUDE_DIR=${{ github.workspace }}/jsoncpp/include" >> $GITHUB_ENV
           echo "JSONCPP_LIB_DIR=${{ github.workspace }}/jsoncpp/build/lib/Release" >> $GITHUB_ENV
           echo "JSONCPP_DLL_DIR=${{ github.workspace }}/jsoncpp/build/bin/Release" >> $GITHUB_ENV
+
+      - name: Verify JSONCPP Build Output
+        run: |
+          dir ${{ env.JSONCPP_DLL_DIR }}
 
       - name: Build pysapittsengine
         run: |
