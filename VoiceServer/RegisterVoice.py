@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QListWidgetItem,
     QMessageBox,
+    QLineEdit,
+    QHBoxLayout,
 )
 from PySide6.QtCore import Qt
 import win32file
@@ -134,12 +136,17 @@ class VoiceSelectionGUI(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Label and ComboBox for Engine Selection
+        # Engine Selection
         self.engine_label = QLabel("Select a Voice Engine:", self)
         self.engine_combo = QComboBox(self)
         self.engine_combo.currentIndexChanged.connect(self.load_voices)
 
-        # Label and ListWidget for Voice Selection
+        # Search Box for Filtering Languages
+        self.search_box = QLineEdit(self)
+        self.search_box.setPlaceholderText("Search by language...")
+        self.search_box.textChanged.connect(self.filter_voices)
+
+        # Voice Selection List
         self.voice_label = QLabel("Select Voices:", self)
         self.voice_list = QListWidget(self)
         self.voice_list.setSelectionMode(QListWidget.MultiSelection)
@@ -151,13 +158,14 @@ class VoiceSelectionGUI(QWidget):
         # Adding widgets to the layout
         layout.addWidget(self.engine_label)
         layout.addWidget(self.engine_combo)
+        layout.addWidget(self.search_box)
         layout.addWidget(self.voice_label)
         layout.addWidget(self.voice_list)
         layout.addWidget(self.register_button)
 
         self.setLayout(layout)
         self.setWindowTitle("Voice Engine and Voice Selection")
-        self.resize(400, 300)
+        self.resize(400, 400)
 
         # Load Engines when initializing UI
         self.load_engines()
@@ -196,6 +204,25 @@ class VoiceSelectionGUI(QWidget):
             QMessageBox.critical(
                 self, "Error", f"Failed to load voices for engine {engine_name}."
             )
+
+    def update_voice_list(self, voices):
+        """Updates the voice list with the given voices."""
+        self.voice_list.clear()
+        for voice in voices:
+            languages = ", ".join(voice.get("language_codes", []))
+            item = QListWidgetItem(f"{voice['name']} - Languages: {languages}")
+            item.setData(Qt.UserRole, voice)
+            self.voice_list.addItem(item)
+
+    def filter_voices(self):
+        """Filters the voice list based on the search box input."""
+        search_text = self.search_box.text().lower()
+        filtered_voices = [
+            voice
+            for voice in self.voices
+            if search_text in ", ".join(voice.get("language_codes", [])).lower()
+        ]
+        self.update_voice_list(filtered_voices)
 
     def register_selected_voices(self):
         """Registers the selected voices."""
