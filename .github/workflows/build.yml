@@ -70,12 +70,15 @@ jobs:
         run: |
           $cmakeFile = "engine/CMakeLists.txt"
           
+          # Define the CMake code to be injected
           $injection = @"
-          include_directories(\${JSONCPP_INCLUDE_DIR})
-          link_directories(\${JSONCPP_LIB_DIR})
+          include_directories(${JSONCPP_INCLUDE_DIR})
+          link_directories(${JSONCPP_LIB_DIR})
+
+          # Link jsoncpp to your executables if needed
           "@
           
-          # Append or prepend the injection to the CMakeLists.txt
+          # Append the configuration safely at the end of the CMakeLists.txt file
           Add-Content -Path $cmakeFile -Value $injection
           
         shell: pwsh
