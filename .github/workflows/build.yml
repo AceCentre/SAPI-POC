@@ -66,6 +66,20 @@ jobs:
         run: |
           dir $env:JSONCPP_DLL_DIR
 
+      - name: Inject JSONCPP configuration into CMakeLists.txt
+        run: |
+          $cmakeFile = "engine/CMakeLists.txt"
+          
+          $injection = @"
+          include_directories(\${JSONCPP_INCLUDE_DIR})
+          link_directories(\${JSONCPP_LIB_DIR})
+          "@
+          
+          # Append or prepend the injection to the CMakeLists.txt
+          Add-Content -Path $cmakeFile -Value $injection
+          
+        shell: pwsh
+
       - name: Build pysapittsengine
         run: |
           cd engine
@@ -73,7 +87,10 @@ jobs:
           cd build
           cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH=${{ env.VCPKG_ROOT }} -DCMAKE_INCLUDE_PATH=${{ env.JSONCPP_INCLUDE_DIR }} -DCMAKE_LIBRARY_PATH=${{ env.JSONCPP_LIB_DIR }}
           cmake --build . --config Release
-          copy ${{ env.JSONCPP_DLL_DIR }}\jsoncpp.dll .  # Copy DLL to output directory
+          Copy-Item "$env:JSONCPP_DLL_DIR\jsoncpp.dll" -Destination "."
+        shell: pwsh
+        env:
+          JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
 
       - name: Print contents of build/bin directory
         run: |
