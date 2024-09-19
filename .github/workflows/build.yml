@@ -29,7 +29,11 @@ jobs:
         uses: microsoft/setup-msbuild@v1.0.2
         with:
           vs-version: '2022'
-
+          components: |
+            Microsoft.VisualStudio.Component.VC.Tools.x86.x64
+            Microsoft.VisualStudio.Component.Windows10SDK.19041
+            Microsoft.VisualStudio.Component.VC.CMake.Project
+            
       - name: Install vcpkg
         run: |
           git clone https://github.com/microsoft/vcpkg.git
