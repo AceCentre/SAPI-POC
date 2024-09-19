@@ -22,37 +22,49 @@ jobs:
         with:
           python-version: "3.12"
 
-      # # Install vcpkg (if not already installed)
-      # - name: Set up vcpkg
-      #   run: |
-      #     git clone https://github.com/microsoft/vcpkg.git
-      #     ./vcpkg/bootstrap-vcpkg.bat
-          
-      # # Install JsonCPP with vcpkg
-      # - name: Install JsonCPP via vcpkg
-      #   run: |
-      #     ./vcpkg/vcpkg install jsoncpp
-      #     ./vcpkg/vcpkg integrate install  # To set up vcpkg to work with CMake
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v1
 
-      # # Build the DLL using CMake
-      # - name: Build DLL using CMake
-      #   run: |
-      #     cd engine
-      #     mkdir build
-      #     cd build
-      #     cmake -DCMAKE_TOOLCHAIN_FILE=../../vcpkg/scripts/buildsystems/vcpkg.cmake ..
-      #     cmake --build . --config Debug
-      #     cmake --build . --config Release
+      - name: Install Visual Studio
+        uses: microsoft/setup-msbuild@v1.0.2
+        with:
+          vs-version: '2022'
 
-      # - name: Print contents of build/bin directory
-      #   run: |
-      #       dir engine/build
-      #       dir engine/build/Release
+      - name: Install vcpkg
+        uses: luke-williams/action-install-vcpkg@v1
+
+      - name: Build JSONCPP
+        run: |
+          git clone https://github.com/open-source-parsers/jsoncpp.git
+          cd jsoncpp
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+
+      - name: Set up JSONCPP paths
+        run: |
+          echo "JSONCPP_INCLUDE_DIR=$GITHUB_WORKSPACE/jsoncpp/include" >> $GITHUB_ENV
+          echo "JSONCPP_LIB_DIR=$GITHUB_WORKSPACE/jsoncpp/build/lib/Release" >> $GITHUB_ENV
+          echo "JSONCPP_DLL_DIR=$GITHUB_WORKSPACE/jsoncpp/build/bin/Release" >> $GITHUB_ENV
+
+      - name: Build pysapittsengine
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH=$env:VCPKG_ROOT -DCMAKE_INCLUDE_PATH=$env:JSONCPP_INCLUDE_DIR -DCMAKE_LIBRARY_PATH=$env:JSONCPP_LIB_DIR
+          cmake --build . --config Release
+          copy $env:JSONCPP_DLL_DIR\jsoncpp.dll .  # Copy DLL to output directory
+
+      - name: Print contents of build/bin directory
+        run: |
+            dir engine/build
+            dir engine/build/Release
             
-      # # Move the DLL to VoiceServer directory
-      # - name: Move DLL and other bits to VoiceServer directory
-      #   run: |
-      #     Move-Item -Force engine/build/Release/* VoiceServer/_libs/
+      # Move the DLL to VoiceServer directory
+      - name: Move DLL and other bits to VoiceServer directory
+        run: |
+          Move-Item -Force engine/build/Release/* VoiceServer/_libs/
 
       - name: Set up UV
         uses: yezz123/setup-uv@v4
