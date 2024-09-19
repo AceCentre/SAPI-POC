@@ -43,19 +43,17 @@ jobs:
 
       - name: Set up JSONCPP paths
         run: |
-          echo "JSONCPP_INCLUDE_DIR=$GITHUB_WORKSPACE/jsoncpp/include" >> $GITHUB_ENV
-          echo "JSONCPP_LIB_DIR=$GITHUB_WORKSPACE/jsoncpp/build/lib/Release" >> $GITHUB_ENV
-          echo "JSONCPP_DLL_DIR=$GITHUB_WORKSPACE/jsoncpp/build/bin/Release" >> $GITHUB_ENV
+          echo "JSONCPP_INCLUDE_DIR=${{ github.workspace }}/jsoncpp/include" >> $GITHUB_ENV
+          echo "JSONCPP_LIB_DIR=${{ github.workspace }}/jsoncpp/build/lib/Release" >> $GITHUB_ENV
+          echo "JSONCPP_DLL_DIR=${{ github.workspace }}/jsoncpp/build/bin/Release" >> $GITHUB_ENV
 
       - name: Build pysapittsengine
         run: |
-          cd engine
           mkdir build
           cd build
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH=$env:VCPKG_ROOT -DCMAKE_INCLUDE_PATH=$env:JSONCPP_INCLUDE_DIR -DCMAKE_LIBRARY_PATH=$env:JSONCPP_LIB_DIR
-          cmake --build . --config Debug
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH=${{ env.VCPKG_ROOT }} -DCMAKE_INCLUDE_PATH=${{ env.JSONCPP_INCLUDE_DIR }} -DCMAKE_LIBRARY_PATH=${{ env.JSONCPP_LIB_DIR }}
           cmake --build . --config Release
-          copy $env:JSONCPP_DLL_DIR\jsoncpp.dll .  # Copy DLL to output directory
+          copy ${{ env.JSONCPP_DLL_DIR }}\jsoncpp.dll .  # Copy DLL to output directory
 
       - name: Print contents of build/bin directory
         run: |
