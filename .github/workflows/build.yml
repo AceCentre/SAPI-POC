@@ -94,6 +94,8 @@ jobs:
         shell: pwsh
         env:
           JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
+          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
+          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
 
       - name: Print contents of build/bin directory
         run: |
