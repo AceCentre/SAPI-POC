@@ -84,7 +84,12 @@ jobs:
           Copy-Item -Path "$env:JSONCPP_INCLUDE_DIR\*" -Destination "D:/a/SAPI-POC/SAPI-POC/engine/include" -Recurse
           Copy-Item -Path "$env:JSONCPP_LIB_DIR\*" -Destination "D:/a/SAPI-POC/SAPI-POC/engine/lib" -Recurse
         shell: pwsh
-
+        env:
+          VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+          JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
+          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
+          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
+          
       - name: Build pysapittsengine
         run: |
           cd engine
