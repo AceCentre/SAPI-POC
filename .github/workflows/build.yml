@@ -48,17 +48,6 @@ jobs:
           echo "JSONCPP_LIB_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/lib/Release" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "JSONCPP_DLL_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/bin/Release" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Verify Environment Variables
-        shell: pwsh
-        run: |
-          Write-Host "Include Dir: $env:JSONCPP_INCLUDE_DIR"
-          Write-Host "Lib Dir: $env:JSONCPP_LIB_DIR"
-          Write-Host "DLL Dir: $env:JSONCPP_DLL_DIR"
-        env:
-          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
-          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
-          JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
-
       - name: Verify JSONCPP Build Output
         shell: pwsh
         env:
@@ -82,7 +71,12 @@ jobs:
           Add-Content -Path $cmakeFile -Value $injection
           
         shell: pwsh
-
+        env:
+          VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+          JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
+          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
+          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
+          
       - name: Build pysapittsengine
         run: |
           cd engine
@@ -93,6 +87,7 @@ jobs:
           Copy-Item "$env:JSONCPP_DLL_DIR\jsoncpp.dll" -Destination "."
         shell: pwsh
         env:
+          VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
           JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
           JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
           JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
