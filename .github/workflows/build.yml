@@ -42,25 +42,26 @@ jobs:
           cmake --build . --config Release
           
       - name: Set up JSONCPP paths
-        run: |
-          echo "JSONCPP_INCLUDE_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/include" >> $GITHUB_ENV
-          echo "JSONCPP_LIB_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/lib/Release" >> $GITHUB_ENV
-          echo "JSONCPP_DLL_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/bin/Release" >> $GITHUB_ENV
         shell: pwsh
+        run: |
+          echo "JSONCPP_INCLUDE_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/include" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "JSONCPP_LIB_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/lib/Release" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "JSONCPP_DLL_DIR=D:/a/SAPI-POC/SAPI-POC/jsoncpp/build/bin/Release" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Verify Environment Variables
-        run: |
-          echo "Include Dir: $env:JSONCPP_INCLUDE_DIR"
-          echo "Lib Dir: $env:JSONCPP_LIB_DIR"
-          echo "DLL Dir: $env:JSONCPP_DLL_DIR"
-          env
         shell: pwsh
+        run: |
+          Write-Host "Include Dir: $env:JSONCPP_INCLUDE_DIR"
+          Write-Host "Lib Dir: $env:JSONCPP_LIB_DIR"
+          Write-Host "DLL Dir: $env:JSONCPP_DLL_DIR"
+        env:
+          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
+          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
+          JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
 
       - name: Verify JSONCPP Build Output
         shell: pwsh
         env:
-          JSONCPP_INCLUDE_DIR: ${{ env.JSONCPP_INCLUDE_DIR }}
-          JSONCPP_LIB_DIR: ${{ env.JSONCPP_LIB_DIR }}
           JSONCPP_DLL_DIR: ${{ env.JSONCPP_DLL_DIR }}
         run: |
           dir $env:JSONCPP_DLL_DIR
