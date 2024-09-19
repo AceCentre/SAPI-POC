@@ -19,6 +19,7 @@ import win32file
 import win32pipe
 import zlib
 import os
+from langcodes import Language
 
 
 def setup_logging():
@@ -201,11 +202,25 @@ class VoiceSelectionGUI(QWidget):
                 self, "Error", f"Failed to load voices for engine {engine_name}."
             )
 
+    def get_language_name(self, code):
+        """Returns a human-readable language name for a given language code using langcodes."""
+        try:
+            language = Language.get(code)
+            return f"{language.display_name()} ({code})"
+        except Exception as e:
+            logging.error(f"Error getting language name for code '{code}': {e}")
+            return code  # Fallback to code if name not found
+
     def update_voice_list(self, voices):
         """Updates the voice list with the given voices."""
         self.voice_list.clear()
         for voice in voices:
-            languages = ", ".join(voice.get("language_codes", []))
+            languages = ", ".join(
+                [
+                    self.get_language_name(code)
+                    for code in voice.get("language_codes", [])
+                ]
+            )
             item = QListWidgetItem(f"{voice['name']} - Languages: {languages}")
             item.setData(Qt.UserRole, voice)
             self.voice_list.addItem(item)
@@ -213,11 +228,14 @@ class VoiceSelectionGUI(QWidget):
     def filter_voices(self):
         """Filters the voice list based on the search box input."""
         search_text = self.search_box.text().lower()
-        filtered_voices = [
-            voice
-            for voice in self.voices
-            if search_text in ", ".join(voice.get("language_codes", [])).lower()
-        ]
+        filtered_voices = []
+        for voice in self.voices:
+            language_names = [
+                self.get_language_name(code).lower()
+                for code in voice.get("language_codes", [])
+            ]
+            if any(search_text in name for name in language_names):
+                filtered_voices.append(voice)
         self.update_voice_list(filtered_voices)
 
     def register_selected_voices(self):
